@@ -163,10 +163,24 @@ const DiagnosticoFormPage = () => {
     }
 
     if (status === "finalizado") {
-      const required = ["receita_prevista_ano","receita_realizada","despesa_fixada","despesa_liquidada","despesa_paga","caixa","receita_corrente_liquida","gasto_pessoal"];
-      const missing = required.filter((f) => !form[f] && form[f] !== 0);
+      const requiredFields: Record<string, string> = {
+        receita_prevista_ano: "Receita Prevista Ano",
+        receita_realizada: "Receita Realizada",
+        despesa_liquidada: "Despesa Liquidada",
+        despesa_paga: "Despesa Paga",
+        caixa: "Caixa",
+        aplicacao_educacao: "Índice Educação (%)",
+        aplicacao_fundeb_70: "Índice FUNDEB (%)",
+        aplicacao_saude: "Índice Saúde (%)",
+        gasto_pessoal: "Índice Pessoal (%)",
+      };
+      const missing = Object.entries(requiredFields).filter(([f]) => {
+        const v = form[f];
+        return v === null || v === undefined || v === "" || v === null;
+      });
       if (missing.length > 0) {
-        toast.error("Preencha todos os campos obrigatórios para finalizar");
+        const names = missing.map(([, label]) => label).join(", ");
+        toast.error(`Campos obrigatórios não preenchidos: ${names}`);
         return;
       }
     }
