@@ -192,15 +192,28 @@ const UsuarioFormPage = () => {
       }
     }
 
+    const primaryMunicipioId = isMultiMunicipio ? (municipioIds[0] || 0) : parseInt(municipioId);
+
     const userData = {
       nome,
       username,
       email,
       telefone: telefone || null,
       perfil: perfil as any,
-      municipio_id: parseInt(municipioId),
+      municipio_id: primaryMunicipioId,
       ativo,
       foto_url: uploadedFotoUrl,
+    };
+
+    const saveMultiMunicipios = async (userId: string) => {
+      // Delete old entries
+      await supabase.from("usuario_municipios").delete().eq("usuario_id", userId);
+      // Insert new if multi-municipio profile
+      if (isMultiMunicipio && municipioIds.length > 0) {
+        await supabase.from("usuario_municipios").insert(
+          municipioIds.map((mid) => ({ usuario_id: userId, municipio_id: mid }))
+        );
+      }
     };
 
     if (isEdit && id) {
@@ -210,7 +223,7 @@ const UsuarioFormPage = () => {
         setSaving(false);
         return;
       }
-      // If profile changed, recopy permissions
+      await saveMultiMunicipios(id);
       if (perfil !== perfilOriginal) {
         await supabase.rpc("copiar_permissoes_perfil", {
           p_usuario_id: id,
@@ -225,7 +238,7 @@ const UsuarioFormPage = () => {
         setSaving(false);
         return;
       }
-      // Copy profile permissions
+      await saveMultiMunicipios(newUser.id);
       await supabase.rpc("copiar_permissoes_perfil", {
         p_usuario_id: newUser.id,
         p_perfil: perfil as any,
