@@ -256,6 +256,71 @@ export type Database = {
           },
         ]
       }
+      tcmgo_municipios: {
+        Row: {
+          atualizado_em: string | null
+          cnpj: string | null
+          descricao: string
+          id: number
+          importado_em: string | null
+          regiao: string | null
+        }
+        Insert: {
+          atualizado_em?: string | null
+          cnpj?: string | null
+          descricao: string
+          id: number
+          importado_em?: string | null
+          regiao?: string | null
+        }
+        Update: {
+          atualizado_em?: string | null
+          cnpj?: string | null
+          descricao?: string
+          id?: number
+          importado_em?: string | null
+          regiao?: string | null
+        }
+        Relationships: []
+      }
+      tcmgo_sync_log: {
+        Row: {
+          finalizado_em: string | null
+          id: string
+          iniciado_em: string | null
+          mensagem_erro: string | null
+          status: string
+          total_registros: number | null
+          usuario_id: string | null
+        }
+        Insert: {
+          finalizado_em?: string | null
+          id?: string
+          iniciado_em?: string | null
+          mensagem_erro?: string | null
+          status?: string
+          total_registros?: number | null
+          usuario_id?: string | null
+        }
+        Update: {
+          finalizado_em?: string | null
+          id?: string
+          iniciado_em?: string | null
+          mensagem_erro?: string | null
+          status?: string
+          total_registros?: number | null
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tcmgo_sync_log_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       usuario_municipios: {
         Row: {
           id: number
