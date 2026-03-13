@@ -64,28 +64,27 @@ const UsuarioFormPage = () => {
   const [pendingPerfil, setPendingPerfil] = useState("");
 
   useEffect(() => {
-    const fetchMunicipios = async () => {
-      let allMunicipios: { id: number; nome: string }[] = [];
-      let from = 0;
-      const pageSize = 1000;
-      let hasMore = true;
-      while (hasMore) {
-        const { data } = await supabase
-          .from("municipios")
-          .select("id, nome")
-          .order("nome")
-          .range(from, from + pageSize - 1);
-        if (data && data.length > 0) {
-          allMunicipios = [...allMunicipios, ...data];
-          from += pageSize;
-          hasMore = data.length === pageSize;
-        } else {
-          hasMore = false;
-        }
+    const fetchMunicipiosClientes = async () => {
+      // Buscar apenas municípios que são clientes da VH (independente do status)
+      const { data: clientes } = await supabase
+        .from("clientes")
+        .select("municipio_id");
+
+      if (!clientes || clientes.length === 0) {
+        setMunicipios([]);
+        return;
       }
-      setMunicipios(allMunicipios);
+
+      const munIds = clientes.map((c) => c.municipio_id);
+      const { data: muns } = await supabase
+        .from("municipios")
+        .select("id, nome")
+        .in("id", munIds)
+        .order("nome");
+
+      setMunicipios(muns || []);
     };
-    fetchMunicipios();
+    fetchMunicipiosClientes();
   }, []);
 
   useEffect(() => {
