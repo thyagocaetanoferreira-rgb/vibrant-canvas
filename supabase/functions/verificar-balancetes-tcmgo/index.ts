@@ -81,11 +81,13 @@ Deno.serve(async (req) => {
       }
 
       // Get active organs for this municipality
-      const { data: orgaos } = await supabase
+      const { data: orgaos, error: orgaosErr } = await supabase
         .from("tcmgo_orgaos")
         .select("codigo_orgao, descricao_orgao")
         .eq("municipio_tcmgo_id", munTcm.id)
         .eq("ativo", true);
+
+      console.log(`Município ${munTcm.descricao} (ID ${munTcm.id}): ${orgaos?.length ?? 0} órgãos encontrados, erro: ${orgaosErr?.message ?? 'nenhum'}`);
 
       if (!orgaos?.length) {
         erros.push(`${munTcm.descricao}: nenhum órgão ativo cadastrado`);
