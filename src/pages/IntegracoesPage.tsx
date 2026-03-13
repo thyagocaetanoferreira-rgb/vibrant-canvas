@@ -13,6 +13,7 @@ interface UltimoLog {
   status: string;
   total_registros: number;
   finalizado_em: string;
+  detalhes?: { municipio_nome?: string } | null;
 }
 
 interface MunicipioTCMGO {
@@ -198,13 +199,13 @@ function SincronizacaoOrgaosCard() {
     async function carregarUltimoLog() {
       const { data } = await supabase
         .from("tcmgo_sync_log")
-        .select("status, total_registros, finalizado_em")
+        .select("status, total_registros, finalizado_em, detalhes")
         .eq("status", "sucesso")
         .eq("tipo", "orgaos")
         .order("finalizado_em", { ascending: false })
         .limit(1)
         .single();
-      if (data) setUltimoLog(data);
+      if (data) setUltimoLog(data as UltimoLog);
     }
     carregarUltimoLog();
   }, []);
@@ -241,6 +242,7 @@ function SincronizacaoOrgaosCard() {
         status: "sucesso",
         total_registros: data.total,
         finalizado_em: new Date().toISOString(),
+        detalhes: { municipio_nome: municipioSelecionado.descricao },
       });
     } catch (erro: any) {
       toast.error(`❌ Erro: ${erro.message}`);
@@ -336,6 +338,11 @@ function SincronizacaoOrgaosCard() {
               <CheckCircle className="w-4 h-4 text-accent" />
               Última sincronização: {formatarData(ultimoLog.finalizado_em)}
             </div>
+            {ultimoLog.detalhes?.municipio_nome && (
+              <div className="text-muted-foreground">
+                Município: <strong>{ultimoLog.detalhes.municipio_nome}</strong>
+              </div>
+            )}
             <div className="text-muted-foreground">
               Total de registros:{" "}
               <strong>{ultimoLog.total_registros} órgãos</strong>
