@@ -4,7 +4,7 @@ import { useAppContext } from "@/contexts/AppContext";
 import {
   LayoutDashboard, Send, ListTodo, Scale, ShieldAlert,
   MapPin, Users, FileText, Bell, Settings, Calendar,
-  BarChart3, Globe, CreditCard, ChevronLeft, ChevronRight,
+  BarChart3, Globe, CreditCard, ChevronLeft, ChevronRight, Building2,
 } from "lucide-react";
 
 const navItems = [
