@@ -85,6 +85,17 @@ const UsuarioFormPage = () => {
           setMunicipioId(String(data.municipio_id));
           setAtivo(data.ativo);
           setFotoUrl(data.foto_url);
+
+          // Load additional municipalities
+          const { data: extraMunicipios } = await supabase
+            .from("usuario_municipios")
+            .select("municipio_id")
+            .eq("usuario_id", id);
+          if (extraMunicipios && extraMunicipios.length > 0) {
+            setMunicipioIds(extraMunicipios.map((m: any) => m.municipio_id));
+          } else {
+            setMunicipioIds(data.municipio_id ? [data.municipio_id] : []);
+          }
         }
       };
       fetchUsuario();
