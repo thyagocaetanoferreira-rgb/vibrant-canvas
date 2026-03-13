@@ -39,6 +39,7 @@ function SincronizacaoCard({
   functionName,
   tipoLog,
   labelRegistros,
+  aviso,
 }: {
   titulo: string;
   descricao: string;
@@ -47,6 +48,7 @@ function SincronizacaoCard({
   functionName: string;
   tipoLog: string;
   labelRegistros: string;
+  aviso?: string;
 }) {
   const { usuario } = useAppContext();
   const [carregando, setCarregando] = useState(false);
@@ -108,6 +110,12 @@ function SincronizacaoCard({
 
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">{descricao}</p>
+
+        {aviso && (
+          <p className="text-sm font-medium text-destructive bg-destructive/10 rounded-md px-3 py-2">
+            ⚠️ {aviso}
+          </p>
+        )}
 
         {ultimoLog && (
           <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
@@ -409,6 +417,7 @@ export default function IntegracoesPage() {
           functionName="verificar-balancetes-tcmgo"
           tipoLog="balancetes"
           labelRegistros="verificações"
+          aviso="Pré-requisito: os municípios e órgãos do TCM-GO devem ser importados antes, e os clientes devem estar vinculados ao município TCM-GO."
         />
       </div>
     </div>
