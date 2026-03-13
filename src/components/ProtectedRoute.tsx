@@ -1,7 +1,7 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { useAppContext } from "@/contexts/AppContext";
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+const ProtectedRoute = () => {
   const { usuario, municipio, municipiosDisponiveis, authLoading } = useAppContext();
 
   if (authLoading) {
@@ -19,12 +19,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // User authenticated but no municipality selected and has multiple options
   if (!municipio && municipiosDisponiveis.length > 1) {
     return <Navigate to="/selecionar-municipio" replace />;
   }
 
-  return <>{children}</>;
+  return <Outlet />;
 };
 
 export default ProtectedRoute;

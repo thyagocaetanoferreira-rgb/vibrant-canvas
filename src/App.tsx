@@ -41,7 +41,8 @@ const App = () => (
             <Route path="/selecionar-municipio" element={<SelecionarMunicipioPage />} />
 
             {/* Protected routes */}
-            <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+            <Route element={<ProtectedRoute />}>
+              <Route element={<AppLayout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/entregas" element={<EntregasPage />} />
               <Route path="/demandas" element={<DemandasPage />} />
