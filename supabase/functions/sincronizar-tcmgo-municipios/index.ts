@@ -55,12 +55,8 @@ Deno.serve(async (req) => {
 
     const dados = await response.json();
 
-    // Normalize — API returns { municipio: [...] } or single object
-    const lista = Array.isArray(dados?.municipio)
-      ? dados.municipio
-      : dados?.municipio
-        ? [dados.municipio]
-        : [];
+    // API returns a plain array: [{ id, descricao, cnpj, regiao }, ...]
+    const lista = Array.isArray(dados) ? dados : [];
 
     if (lista.length === 0) {
       throw new Error("Nenhum município retornado pela API");
