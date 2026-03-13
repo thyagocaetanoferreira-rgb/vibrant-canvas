@@ -48,6 +48,7 @@ const UsuarioFormPage = () => {
   const [telefone, setTelefone] = useState("");
   const [perfil, setPerfil] = useState("");
   const [municipioId, setMunicipioId] = useState("");
+  const [municipioIds, setMunicipioIds] = useState<number[]>([]);
   const [ativo, setAtivo] = useState(true);
   const [fotoUrl, setFotoUrl] = useState<string | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
