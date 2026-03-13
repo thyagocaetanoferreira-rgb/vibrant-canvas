@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppProvider } from "@/contexts/AppContext";
 import AppLayout from "@/components/layout/AppLayout";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import Dashboard from "@/pages/Dashboard";
 import EntregasPage from "@/pages/EntregasPage";
 import DemandasPage from "@/pages/DemandasPage";
@@ -12,6 +13,10 @@ import JuridicoPage from "@/pages/JuridicoPage";
 import RiscosPage from "@/pages/RiscosPage";
 import ModulePlaceholder from "@/components/ModulePlaceholder";
 import NotFound from "./pages/NotFound";
+import LoginPage from "@/pages/LoginPage";
+import EsqueciSenhaPage from "@/pages/EsqueciSenhaPage";
+import ResetPasswordPage from "@/pages/ResetPasswordPage";
+import SelecionarMunicipioPage from "@/pages/SelecionarMunicipioPage";
 import UsuariosListPage from "@/pages/usuarios/UsuariosListPage";
 import UsuarioFormPage from "@/pages/usuarios/UsuarioFormPage";
 import UsuarioPermissoesPage from "@/pages/usuarios/UsuarioPermissoesPage";
@@ -26,10 +31,18 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <AppProvider>
-        <BrowserRouter>
+      <BrowserRouter>
+        <AppProvider>
           <Routes>
-            <Route element={<AppLayout />}>
+            {/* Public routes */}
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/esqueci-senha" element={<EsqueciSenhaPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/selecionar-municipio" element={<SelecionarMunicipioPage />} />
+
+            {/* Protected routes */}
+            <Route element={<ProtectedRoute />}>
+              <Route element={<AppLayout />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/entregas" element={<EntregasPage />} />
               <Route path="/demandas" element={<DemandasPage />} />
@@ -51,11 +64,12 @@ const App = () => (
               <Route path="/clientes" element={<ClientesListPage />} />
               <Route path="/clientes/novo" element={<ClienteFormPage />} />
               <Route path="/clientes/:id/editar" element={<ClienteFormPage />} />
+              </Route>
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </BrowserRouter>
-      </AppProvider>
+        </AppProvider>
+      </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );
