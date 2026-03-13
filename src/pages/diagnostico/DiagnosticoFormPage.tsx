@@ -488,10 +488,10 @@ const DiagnosticoFormPage = () => {
               <div>
                 <h4 className="font-semibold text-card-foreground mb-1">Índices LRF</h4>
                 <div className="grid grid-cols-2 gap-2">
-                  <IndiceResumo label="Educação" value={calcIndiceEducacao(savedData.aplicacao_educacao || 0, savedData.receita_realizada || 0)} statusFn={statusEducacao} />
-                  <IndiceResumo label="FUNDEB" value={calcIndiceFundeb(savedData.aplicacao_fundeb_70 || 0, savedData.receita_fundeb || 0)} statusFn={statusFundeb} />
-                  <IndiceResumo label="Saúde" value={calcIndiceSaude(savedData.aplicacao_saude || 0, savedData.receita_corrente_liquida || 0)} statusFn={statusSaude} />
-                  <IndiceResumo label="Pessoal" value={calcIndicePessoal(savedData.gasto_pessoal || 0, savedData.receita_corrente_liquida || 0)} statusFn={statusPessoal} />
+                  <IndiceResumo label="Educação" value={numVal(savedData.aplicacao_educacao) / 100 || null} statusFn={statusEducacao} />
+                  <IndiceResumo label="FUNDEB" value={numVal(savedData.aplicacao_fundeb_70) / 100 || null} statusFn={statusFundeb} />
+                  <IndiceResumo label="Saúde" value={numVal(savedData.aplicacao_saude) / 100 || null} statusFn={statusSaude} />
+                  <IndiceResumo label="Pessoal" value={numVal(savedData.gasto_pessoal) / 100 || null} statusFn={statusPessoal} />
                 </div>
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t border-border">
