@@ -242,6 +242,7 @@ function SincronizacaoOrgaosCard() {
         status: "sucesso",
         total_registros: data.total,
         finalizado_em: new Date().toISOString(),
+        detalhes: { municipio_nome: municipioSelecionado.descricao },
       });
     } catch (erro: any) {
       toast.error(`❌ Erro: ${erro.message}`);
