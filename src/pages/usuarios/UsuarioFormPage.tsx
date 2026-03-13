@@ -12,6 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Eye, EyeOff, Check, X, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import MunicipioMultiSelect from "@/components/MunicipioMultiSelect";
+
+const PERFIS_MULTI_MUNICIPIO = ["Administrador", "Comercial", "Juridico", "Suporte"];
 
 const PERFIS = [
   { value: "Administrador", label: "Administrador", desc: "Acesso total ao sistema" },
