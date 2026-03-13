@@ -65,8 +65,25 @@ const UsuarioFormPage = () => {
 
   useEffect(() => {
     const fetchMunicipios = async () => {
-      const { data } = await supabase.from("municipios").select("id, nome").order("nome");
-      setMunicipios(data || []);
+      let allMunicipios: { id: number; nome: string }[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+      while (hasMore) {
+        const { data } = await supabase
+          .from("municipios")
+          .select("id, nome")
+          .order("nome")
+          .range(from, from + pageSize - 1);
+        if (data && data.length > 0) {
+          allMunicipios = [...allMunicipios, ...data];
+          from += pageSize;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+      setMunicipios(allMunicipios);
     };
     fetchMunicipios();
   }, []);
