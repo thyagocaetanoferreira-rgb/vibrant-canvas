@@ -436,22 +436,33 @@ const UsuarioFormPage = () => {
       {/* Município */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Município *</CardTitle>
+          <CardTitle className="text-lg">{isMultiMunicipio ? "Municípios *" : "Município *"}</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Município vinculado — este usuário só verá dados deste município
+            {isMultiMunicipio
+              ? "Municípios vinculados — este usuário poderá acessar dados de todos os municípios selecionados"
+              : "Município vinculado — este usuário só verá dados deste município"}
           </p>
         </CardHeader>
         <CardContent>
-          <Select value={municipioId} onValueChange={setMunicipioId}>
-            <SelectTrigger className="w-full max-w-sm">
-              <SelectValue placeholder="Selecione o município" />
-            </SelectTrigger>
-            <SelectContent>
-              {municipios.map((m) => (
-                <SelectItem key={m.id} value={String(m.id)}>{m.nome}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {isMultiMunicipio ? (
+            <MunicipioMultiSelect
+              municipios={municipios}
+              selected={municipioIds}
+              onChange={setMunicipioIds}
+              placeholder="Pesquisar e selecionar municípios"
+            />
+          ) : (
+            <Select value={municipioId} onValueChange={setMunicipioId}>
+              <SelectTrigger className="w-full max-w-sm">
+                <SelectValue placeholder="Selecione o município" />
+              </SelectTrigger>
+              <SelectContent>
+                {municipios.map((m) => (
+                  <SelectItem key={m.id} value={String(m.id)}>{m.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           {errors.municipioId && <p className="text-sm text-destructive mt-2">{errors.municipioId}</p>}
         </CardContent>
       </Card>
