@@ -151,10 +151,6 @@ const DiagnosticoFormPage = () => {
   const totalEmpenhado = useMemo(() => calcTotalEmpenhado(numVal(form.despesa_empenhada_f1), numVal(form.despesa_empenhada_f2)), [form.despesa_empenhada_f1, form.despesa_empenhada_f2]);
   const resFinEmpenhado = useMemo(() => calcResFinanceiroEmpenhado(numVal(form.caixa), numVal(form.despesa_nao_processada), numVal(form.consignacoes_tesouraria)), [form.caixa, form.despesa_nao_processada, form.consignacoes_tesouraria]);
 
-  const idxEducacao = useMemo(() => calcIndiceEducacao(numVal(form.aplicacao_educacao), numVal(form.receita_realizada)), [form.aplicacao_educacao, form.receita_realizada]);
-  const idxFundeb = useMemo(() => calcIndiceFundeb(numVal(form.aplicacao_fundeb_70), numVal(form.receita_fundeb)), [form.aplicacao_fundeb_70, form.receita_fundeb]);
-  const idxSaude = useMemo(() => calcIndiceSaude(numVal(form.aplicacao_saude), numVal(form.receita_corrente_liquida)), [form.aplicacao_saude, form.receita_corrente_liquida]);
-  const idxPessoal = useMemo(() => calcIndicePessoal(numVal(form.gasto_pessoal), numVal(form.receita_corrente_liquida)), [form.gasto_pessoal, form.receita_corrente_liquida]);
 
   const handleSave = async (status: "rascunho" | "finalizado") => {
     if (!municipio || !usuario) {
