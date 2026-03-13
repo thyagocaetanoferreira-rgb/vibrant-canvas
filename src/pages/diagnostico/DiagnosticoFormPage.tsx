@@ -207,7 +207,7 @@ const DiagnosticoFormPage = () => {
       const res = await supabase.from("lancamentos_mensais").update(payload).eq("id", id);
       error = res.error;
     } else {
-      const res = await supabase.from("lancamentos_mensais").upsert(payload, {
+      const res = await supabase.from("lancamentos_mensais").upsert(payload as any, {
         onConflict: "cliente_id,mes_referencia,ano_referencia",
       });
       error = res.error;
