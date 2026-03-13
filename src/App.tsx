@@ -12,6 +12,9 @@ import JuridicoPage from "@/pages/JuridicoPage";
 import RiscosPage from "@/pages/RiscosPage";
 import ModulePlaceholder from "@/components/ModulePlaceholder";
 import NotFound from "./pages/NotFound";
+import UsuariosListPage from "@/pages/usuarios/UsuariosListPage";
+import UsuarioFormPage from "@/pages/usuarios/UsuarioFormPage";
+import UsuarioPermissoesPage from "@/pages/usuarios/UsuarioPermissoesPage";
 import { Calendar, BarChart3, MapPin, Users, Globe, CreditCard, FileText, Bell, Settings } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -39,6 +42,10 @@ const App = () => (
               <Route path="/documentos" element={<ModulePlaceholder title="Documentos Internos" description="Documentos e formulários internos" icon={FileText} />} />
               <Route path="/notificacoes" element={<ModulePlaceholder title="Notificações" description="Caixa de entrada e saída de mensagens" icon={Bell} />} />
               <Route path="/configuracoes" element={<ModulePlaceholder title="Configurações" description="Cadastros, usuários e compliance" icon={Settings} />} />
+              <Route path="/usuarios" element={<UsuariosListPage />} />
+              <Route path="/usuarios/novo" element={<UsuarioFormPage />} />
+              <Route path="/usuarios/:id/editar" element={<UsuarioFormPage />} />
+              <Route path="/usuarios/:id/permissoes" element={<UsuarioPermissoesPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

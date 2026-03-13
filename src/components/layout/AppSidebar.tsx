@@ -21,6 +21,7 @@ const navItems = [
   { label: "Financeiro", icon: CreditCard, path: "/financeiro" },
   { label: "Documentos", icon: FileText, path: "/documentos" },
   { label: "Notificações", icon: Bell, path: "/notificacoes" },
+  { label: "Usuários", icon: Users, path: "/usuarios" },
   { label: "Configurações", icon: Settings, path: "/configuracoes" },
 ];
 
