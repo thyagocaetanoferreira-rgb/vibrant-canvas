@@ -14,6 +14,102 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          acao: string
+          cliente_id: string | null
+          criado_em: string | null
+          detalhes: Json | null
+          id: string
+          usuario_id: string | null
+        }
+        Insert: {
+          acao: string
+          cliente_id?: string | null
+          criado_em?: string | null
+          detalhes?: Json | null
+          id?: string
+          usuario_id?: string | null
+        }
+        Update: {
+          acao?: string
+          cliente_id?: string | null
+          criado_em?: string | null
+          detalhes?: Json | null
+          id?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_log_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clientes: {
+        Row: {
+          atualizado_em: string | null
+          criado_em: string | null
+          criado_por: string | null
+          id: string
+          link_sistema: string | null
+          login_sistema: string | null
+          municipio_id: number
+          senha_sistema: string | null
+          status: boolean | null
+          tipos_servico: Database["public"]["Enums"]["tipo_servico"][]
+        }
+        Insert: {
+          atualizado_em?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          id?: string
+          link_sistema?: string | null
+          login_sistema?: string | null
+          municipio_id: number
+          senha_sistema?: string | null
+          status?: boolean | null
+          tipos_servico?: Database["public"]["Enums"]["tipo_servico"][]
+        }
+        Update: {
+          atualizado_em?: string | null
+          criado_em?: string | null
+          criado_por?: string | null
+          id?: string
+          link_sistema?: string | null
+          login_sistema?: string | null
+          municipio_id?: number
+          senha_sistema?: string | null
+          status?: boolean | null
+          tipos_servico?: Database["public"]["Enums"]["tipo_servico"][]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clientes_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clientes_municipio_id_fkey"
+            columns: ["municipio_id"]
+            isOneToOne: true
+            referencedRelation: "municipios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       modulos: {
         Row: {
           chave: string
@@ -267,6 +363,7 @@ export type Database = {
         | "Coordenador"
         | "Juridico"
         | "Suporte"
+      tipo_servico: "Contábil" | "Jurídico" | "Auditoria" | "Compliance"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -402,6 +499,7 @@ export const Constants = {
         "Juridico",
         "Suporte",
       ],
+      tipo_servico: ["Contábil", "Jurídico", "Auditoria", "Compliance"],
     },
   },
 } as const
