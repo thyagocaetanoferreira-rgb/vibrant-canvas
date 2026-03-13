@@ -45,6 +45,14 @@ const ClienteFormPage = () => {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // TCM-GO municipality
+  const [municipioTcmgoId, setMunicipioTcmgoId] = useState<number | null>(null);
+  const [tcmgoMunicipios, setTcmgoMunicipios] = useState<{ id: number; descricao: string }[]>([]);
+  const [tcmgoBusca, setTcmgoBusca] = useState("");
+  const [tcmgoPopoverAberto, setTcmgoPopoverAberto] = useState(false);
+  const [tcmgoSelecionadoNome, setTcmgoSelecionadoNome] = useState("");
+  const [loading, setLoading] = useState(false);
+
   // Municipio search
   const [munSearch, setMunSearch] = useState("");
   const [munResults, setMunResults] = useState<Municipio[]>([]);
