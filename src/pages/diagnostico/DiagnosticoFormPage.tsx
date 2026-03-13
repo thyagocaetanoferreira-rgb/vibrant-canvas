@@ -328,21 +328,19 @@ const DiagnosticoFormPage = () => {
         {/* ABA 2 — DESPESAS */}
         <TabsContent value="despesas" className="bg-card rounded-xl border border-border p-6 space-y-4 mt-4">
           <h3 className="font-heading font-semibold text-card-foreground">Despesas</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <MoneyInput label="Despesa Fixada" value={form.despesa_fixada} onChange={(v) => set("despesa_fixada", v)} required />
-            <MoneyInput label="Despesa Paga" value={form.despesa_paga} onChange={(v) => set("despesa_paga", v)} required />
-          </div>
+          <MoneyInput label="Despesa Fixada" value={form.despesa_fixada} onChange={(v) => set("despesa_fixada", v)} required />
           <div className="space-y-2">
             <Label className="text-sm font-medium text-card-foreground">Despesa Empenhada</Label>
             <div className="grid grid-cols-2 gap-4">
-              <MoneyInput label="Fonte 1" value={form.despesa_empenhada_f1} onChange={(v) => set("despesa_empenhada_f1", v)} />
-              <MoneyInput label="Fonte 2" value={form.despesa_empenhada_f2} onChange={(v) => set("despesa_empenhada_f2", v)} />
+              <MoneyInput label="Fonte 1" value={form.despesa_empenhada_f1} onChange={(v) => set("despesa_empenhada_f1", v)} required />
+              <MoneyInput label="Fonte 2" value={form.despesa_empenhada_f2} onChange={(v) => set("despesa_empenhada_f2", v)} required />
             </div>
             <div className="bg-muted/30 rounded-lg px-4 py-2 text-sm text-muted-foreground">
               Total Empenhado (calculado): <span className="font-medium text-card-foreground">{formatBRL(totalEmpenhado)}</span>
             </div>
           </div>
           <MoneyInput label="Despesa Liquidada" value={form.despesa_liquidada} onChange={(v) => set("despesa_liquidada", v)} required />
+          <MoneyInput label="Despesa Paga" value={form.despesa_paga} onChange={(v) => set("despesa_paga", v)} required />
         </TabsContent>
 
         {/* ABA 3 — CAIXA */}
@@ -350,14 +348,14 @@ const DiagnosticoFormPage = () => {
           <h3 className="font-heading font-semibold text-card-foreground">Disponibilidade de Caixa</h3>
           <div className="grid grid-cols-2 gap-4">
             <MoneyInput label="Caixa" value={form.caixa} onChange={(v) => set("caixa", v)} required />
-            <MoneyInput label="Consignações / Tesouraria" value={form.consignacoes_tesouraria} onChange={(v) => set("consignacoes_tesouraria", v)} />
+            <MoneyInput label="Consignações / Tesouraria" value={form.consignacoes_tesouraria} onChange={(v) => set("consignacoes_tesouraria", v)} required />
           </div>
           <h4 className="text-sm font-medium text-card-foreground pt-2">Restos a Pagar</h4>
           <div className="grid grid-cols-2 gap-4">
-            <MoneyInput label="Despesa não processada" value={form.despesa_nao_processada} onChange={(v) => set("despesa_nao_processada", v)} />
-            <MoneyInput label="Despesa Processada" value={form.despesa_processada} onChange={(v) => set("despesa_processada", v)} />
-            <MoneyInput label="Resto não processado" value={form.resto_nao_processado} onChange={(v) => set("resto_nao_processado", v)} />
-            <MoneyInput label="Resto processado" value={form.resto_processado} onChange={(v) => set("resto_processado", v)} />
+            <MoneyInput label="Despesa não processada" value={form.despesa_nao_processada} onChange={(v) => set("despesa_nao_processada", v)} required />
+            <MoneyInput label="Despesa Processada" value={form.despesa_processada} onChange={(v) => set("despesa_processada", v)} required />
+            <MoneyInput label="Resto não processado" value={form.resto_nao_processado} onChange={(v) => set("resto_nao_processado", v)} required />
+            <MoneyInput label="Resto processado" value={form.resto_processado} onChange={(v) => set("resto_processado", v)} required />
           </div>
           <div className="bg-muted/30 rounded-lg px-4 py-3 text-sm text-muted-foreground space-y-1">
             <p>Resultado Financeiro (calculado):</p>
@@ -416,16 +414,16 @@ const DiagnosticoFormPage = () => {
             <div className="space-y-5">
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-card-foreground border-b border-border pb-1">Educação (MDE)</h4>
-                <MoneyInput label="Aplicação em Educação" value={form.aplicacao_educacao} onChange={(v) => set("aplicacao_educacao", v)} />
+                <MoneyInput label="Aplicação em Educação" value={form.aplicacao_educacao} onChange={(v) => set("aplicacao_educacao", v)} required />
               </div>
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-card-foreground border-b border-border pb-1">FUNDEB</h4>
-                <MoneyInput label="Receita do FUNDEB" value={form.receita_fundeb} onChange={(v) => set("receita_fundeb", v)} />
-                <MoneyInput label="Aplicação dos 70% FUNDEB" value={form.aplicacao_fundeb_70} onChange={(v) => set("aplicacao_fundeb_70", v)} />
+                <MoneyInput label="Receita do FUNDEB" value={form.receita_fundeb} onChange={(v) => set("receita_fundeb", v)} required />
+                <MoneyInput label="Aplicação dos 70% FUNDEB" value={form.aplicacao_fundeb_70} onChange={(v) => set("aplicacao_fundeb_70", v)} required />
               </div>
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-card-foreground border-b border-border pb-1">Saúde (ASPS)</h4>
-                <MoneyInput label="Aplicação em Saúde" value={form.aplicacao_saude} onChange={(v) => set("aplicacao_saude", v)} />
+                <MoneyInput label="Aplicação em Saúde" value={form.aplicacao_saude} onChange={(v) => set("aplicacao_saude", v)} required />
               </div>
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-card-foreground border-b border-border pb-1">Pessoal (LRF)</h4>
