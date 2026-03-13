@@ -4,7 +4,7 @@ import { useAppContext } from "@/contexts/AppContext";
 import {
   LayoutDashboard, Send, ListTodo, Scale, ShieldAlert,
   MapPin, Users, FileText, Bell, Settings, Calendar,
-  BarChart3, Globe, CreditCard, ChevronLeft, ChevronRight,
+  BarChart3, Globe, CreditCard, ChevronLeft, ChevronRight, Building2,
 } from "lucide-react";
 
 const navItems = [
@@ -21,6 +21,7 @@ const navItems = [
   { label: "Financeiro", icon: CreditCard, path: "/financeiro" },
   { label: "Documentos", icon: FileText, path: "/documentos" },
   { label: "Notificações", icon: Bell, path: "/notificacoes" },
+  { label: "Clientes", icon: Building2, path: "/clientes" },
   { label: "Usuários", icon: Users, path: "/usuarios" },
   { label: "Configurações", icon: Settings, path: "/configuracoes" },
 ];
