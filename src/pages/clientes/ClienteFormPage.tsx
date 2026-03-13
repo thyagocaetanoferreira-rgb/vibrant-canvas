@@ -340,6 +340,83 @@ const ClienteFormPage = () => {
             )}
           </div>
 
+          {/* Município TCM-GO */}
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">
+              Município TCM-GO
+              <span className="text-muted-foreground text-xs font-normal ml-1">(para integração com o Tribunal de Contas)</span>
+            </Label>
+            <Popover open={tcmgoPopoverAberto} onOpenChange={setTcmgoPopoverAberto}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-between font-normal"
+                  type="button"
+                >
+                  {municipioTcmgoId
+                    ? tcmgoSelecionadoNome || `ID: ${municipioTcmgoId}`
+                    : "Selecione o município TCM-GO (opcional)"}
+                  <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <div className="p-2 border-b border-border">
+                  <Input
+                    placeholder="Buscar município TCM-GO..."
+                    value={tcmgoBusca}
+                    onChange={(e) => setTcmgoBusca(e.target.value)}
+                    className="h-8"
+                    autoFocus
+                  />
+                </div>
+                <ScrollArea className="h-[200px]">
+                  {/* Option to clear */}
+                  {municipioTcmgoId && (
+                    <button
+                      onClick={() => {
+                        setMunicipioTcmgoId(null);
+                        setTcmgoSelecionadoNome("");
+                        setTcmgoPopoverAberto(false);
+                        setTcmgoBusca("");
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-muted transition-colors"
+                    >
+                      ✕ Remover vínculo
+                    </button>
+                  )}
+                  {(tcmgoBusca.trim()
+                    ? tcmgoMunicipios.filter((m) =>
+                        m.descricao.toLowerCase().includes(tcmgoBusca.toLowerCase())
+                      )
+                    : tcmgoMunicipios
+                  )
+                    .slice(0, 100)
+                    .map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => {
+                          setMunicipioTcmgoId(m.id);
+                          setTcmgoSelecionadoNome(m.descricao);
+                          setTcmgoPopoverAberto(false);
+                          setTcmgoBusca("");
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors ${
+                          municipioTcmgoId === m.id
+                            ? "bg-primary/10 text-primary font-medium"
+                            : ""
+                        }`}
+                      >
+                        {m.descricao}
+                      </button>
+                    ))}
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
+            <p className="text-xs text-muted-foreground">
+              Vincule ao município do TCM-GO para habilitar a verificação de balancetes
+            </p>
+          </div>
+
           <Separator />
 
           {/* SEÇÃO B — Tipos de Serviço */}
