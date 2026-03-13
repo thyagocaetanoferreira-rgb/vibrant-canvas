@@ -1,0 +1,1 @@
+ALTER TABLE public.clientes ADD COLUMN municipio_tcmgo_id integer DEFAULT NULL REFERENCES public.tcmgo_municipios(id);
