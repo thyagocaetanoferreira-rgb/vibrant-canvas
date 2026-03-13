@@ -348,7 +348,7 @@ const DiagnosticoFormPage = () => {
           <h3 className="font-heading font-semibold text-card-foreground">Disponibilidade de Caixa</h3>
           <div className="grid grid-cols-2 gap-4">
             <MoneyInput label="Caixa" value={form.caixa} onChange={(v) => set("caixa", v)} required />
-            <MoneyInput label="Consignações / Tesouraria" value={form.consignacoes_tesouraria} onChange={(v) => set("consignacoes_tesouraria", v)} />
+            <MoneyInput label="Consignações / Tesouraria" value={form.consignacoes_tesouraria} onChange={(v) => set("consignacoes_tesouraria", v)} required />
           </div>
           <h4 className="text-sm font-medium text-card-foreground pt-2">Restos a Pagar</h4>
           <div className="grid grid-cols-2 gap-4">
