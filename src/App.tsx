@@ -9,6 +9,8 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Dashboard from "@/pages/Dashboard";
 import EntregasPage from "@/pages/EntregasPage";
 import DemandasPage from "@/pages/DemandasPage";
+import DiagnosticoListPage from "@/pages/diagnostico/DiagnosticoListPage";
+import DiagnosticoFormPage from "@/pages/diagnostico/DiagnosticoFormPage";
 import JuridicoPage from "@/pages/JuridicoPage";
 import RiscosPage from "@/pages/RiscosPage";
 import IntegracoesPage from "@/pages/IntegracoesPage";
