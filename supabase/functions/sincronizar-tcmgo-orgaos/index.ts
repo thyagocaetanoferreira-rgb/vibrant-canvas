@@ -28,7 +28,22 @@ Deno.serve(async (req) => {
   let logId: string | null = null;
 
   try {
-    const { usuario_id } = await req.json();
+    const { usuario_id, municipio_id } = await req.json();
+
+    if (!municipio_id) {
+      throw new Error("O parâmetro municipio_id é obrigatório.");
+    }
+
+    // Verify the municipality exists
+    const { data: mun, error: munError } = await supabase
+      .from("tcmgo_municipios")
+      .select("id, descricao")
+      .eq("id", municipio_id)
+      .single();
+
+    if (munError || !mun) {
+      throw new Error("Município não encontrado na tabela tcmgo_municipios.");
+    }
 
     // Create sync log
     const { data: logData } = await supabase
@@ -43,91 +58,79 @@ Deno.serve(async (req) => {
 
     logId = logData?.id ?? null;
 
-    // Fetch all municipalities from tcmgo_municipios
-    const { data: municipios, error: munError } = await supabase
-      .from("tcmgo_municipios")
-      .select("id")
-      .order("id");
+    // Fetch órgãos for this municipality
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
 
-    if (munError) throw new Error(`Erro ao buscar municípios: ${munError.message}`);
-    if (!municipios || municipios.length === 0) {
-      throw new Error("Nenhum município encontrado na tabela tcmgo_municipios. Sincronize os municípios primeiro.");
+    const response = await fetch(`${BASE_URL}?id=${mun.id}`, {
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      throw new Error(`API TCM-GO retornou status ${response.status}`);
     }
 
-    let totalOrgaos = 0;
-    let municipiosProcessados = 0;
-    let erros: string[] = [];
+    const dados = await response.json();
+    const lista = Array.isArray(dados) ? dados : [];
 
-    // Process municipalities in sequence to avoid overwhelming the API
-    for (const mun of municipios) {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
-
-        const response = await fetch(`${BASE_URL}?id=${mun.id}`, {
-          headers: { Accept: "application/json" },
-          signal: controller.signal,
-        });
-        clearTimeout(timeout);
-
-        if (!response.ok) {
-          erros.push(`Município ${mun.id}: HTTP ${response.status}`);
-          continue;
-        }
-
-        const dados = await response.json();
-        const lista = Array.isArray(dados) ? dados : [];
-
-        if (lista.length === 0) {
-          municipiosProcessados++;
-          continue;
-        }
-
-        const registros = lista.map((o: any) => ({
-          codigo_orgao: String(o.codigoOrgao ?? o.codigo_orgao ?? o.id ?? ""),
-          tipo_orgao: o.tipoOrgao ?? o.tipo_orgao ?? null,
-          descricao_orgao: o.descricaoOrgao ?? o.descricao_orgao ?? o.descricao ?? "",
-          ativo: o.ativo !== undefined ? Boolean(o.ativo) : true,
-          municipio_tcmgo_id: mun.id,
-        }));
-
-        // Upsert batch
-        const { error: upsertError } = await supabase
-          .from("tcmgo_orgaos")
-          .upsert(registros, { onConflict: "codigo_orgao,municipio_tcmgo_id" });
-
-        if (upsertError) {
-          erros.push(`Município ${mun.id}: ${upsertError.message}`);
-        } else {
-          totalOrgaos += registros.length;
-        }
-
-        municipiosProcessados++;
-      } catch (e: any) {
-        erros.push(`Município ${mun.id}: ${e.message}`);
+    if (lista.length === 0) {
+      // Update log as success with 0 records
+      if (logId) {
+        await supabase
+          .from("tcmgo_sync_log")
+          .update({
+            status: "sucesso",
+            total_registros: 0,
+            finalizado_em: new Date().toISOString(),
+          })
+          .eq("id", logId);
       }
+
+      return new Response(
+        JSON.stringify({
+          sucesso: true,
+          total: 0,
+          mensagem: `Nenhum órgão encontrado para ${mun.descricao}.`,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
+
+    const registros = lista.map((o: any) => ({
+      codigo_orgao: String(o.codigoOrgao ?? o.codigo_orgao ?? o.id ?? ""),
+      tipo_orgao: o.tipoOrgao ?? o.tipo_orgao ?? null,
+      descricao_orgao: o.descricaoOrgao ?? o.descricao_orgao ?? o.descricao ?? "",
+      ativo: o.ativo !== undefined ? Boolean(o.ativo) : true,
+      municipio_tcmgo_id: mun.id,
+    }));
+
+    // Upsert
+    const { error: upsertError } = await supabase
+      .from("tcmgo_orgaos")
+      .upsert(registros, { onConflict: "codigo_orgao,municipio_tcmgo_id" });
+
+    if (upsertError) throw new Error(upsertError.message);
 
     // Update log
-    const status = erros.length === municipios.length ? "erro" : "sucesso";
     if (logId) {
       await supabase
         .from("tcmgo_sync_log")
         .update({
-          status,
-          total_registros: totalOrgaos,
+          status: "sucesso",
+          total_registros: registros.length,
           finalizado_em: new Date().toISOString(),
-          mensagem_erro: erros.length > 0 ? erros.slice(0, 10).join("; ") : null,
         })
         .eq("id", logId);
     }
 
-    const mensagem = erros.length > 0
-      ? `${totalOrgaos} órgãos importados de ${municipiosProcessados}/${municipios.length} municípios (${erros.length} erros)`
-      : `${totalOrgaos} órgãos importados de ${municipiosProcessados} municípios`;
-
     return new Response(
-      JSON.stringify({ sucesso: true, total: totalOrgaos, mensagem }),
+      JSON.stringify({
+        sucesso: true,
+        total: registros.length,
+        mensagem: `${registros.length} órgãos importados de ${mun.descricao}.`,
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (erro: any) {
