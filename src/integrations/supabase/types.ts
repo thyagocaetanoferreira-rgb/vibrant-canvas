@@ -283,6 +283,47 @@ export type Database = {
         }
         Relationships: []
       }
+      tcmgo_orgaos: {
+        Row: {
+          ativo: boolean | null
+          atualizado_em: string | null
+          codigo_orgao: string
+          descricao_orgao: string
+          id: number
+          importado_em: string | null
+          municipio_tcmgo_id: number
+          tipo_orgao: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          codigo_orgao: string
+          descricao_orgao: string
+          id?: number
+          importado_em?: string | null
+          municipio_tcmgo_id: number
+          tipo_orgao?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          codigo_orgao?: string
+          descricao_orgao?: string
+          id?: number
+          importado_em?: string | null
+          municipio_tcmgo_id?: number
+          tipo_orgao?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tcmgo_orgaos_municipio_tcmgo_id_fkey"
+            columns: ["municipio_tcmgo_id"]
+            isOneToOne: false
+            referencedRelation: "tcmgo_municipios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tcmgo_sync_log: {
         Row: {
           finalizado_em: string | null
@@ -290,6 +331,7 @@ export type Database = {
           iniciado_em: string | null
           mensagem_erro: string | null
           status: string
+          tipo: string | null
           total_registros: number | null
           usuario_id: string | null
         }
@@ -299,6 +341,7 @@ export type Database = {
           iniciado_em?: string | null
           mensagem_erro?: string | null
           status?: string
+          tipo?: string | null
           total_registros?: number | null
           usuario_id?: string | null
         }
@@ -308,6 +351,7 @@ export type Database = {
           iniciado_em?: string | null
           mensagem_erro?: string | null
           status?: string
+          tipo?: string | null
           total_registros?: number | null
           usuario_id?: string | null
         }
