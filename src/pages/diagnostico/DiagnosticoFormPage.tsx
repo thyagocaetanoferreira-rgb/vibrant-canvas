@@ -418,8 +418,8 @@ const DiagnosticoFormPage = () => {
               </div>
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-card-foreground border-b border-border pb-1">FUNDEB</h4>
-                <MoneyInput label="Receita do FUNDEB" value={form.receita_fundeb} onChange={(v) => set("receita_fundeb", v)} />
-                <MoneyInput label="Aplicação dos 70% FUNDEB" value={form.aplicacao_fundeb_70} onChange={(v) => set("aplicacao_fundeb_70", v)} />
+                <MoneyInput label="Receita do FUNDEB" value={form.receita_fundeb} onChange={(v) => set("receita_fundeb", v)} required />
+                <MoneyInput label="Aplicação dos 70% FUNDEB" value={form.aplicacao_fundeb_70} onChange={(v) => set("aplicacao_fundeb_70", v)} required />
               </div>
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-card-foreground border-b border-border pb-1">Saúde (ASPS)</h4>
