@@ -15,7 +15,6 @@ import { ArrowLeft, Save, CheckCircle2, AlertTriangle, Printer } from "lucide-re
 import { toast } from "sonner";
 import {
   calcReceitaPrevistaMes, calcTotalEmpenhado, calcResFinanceiroEmpenhado,
-  calcIndiceEducacao, calcIndiceFundeb, calcIndiceSaude, calcIndicePessoal,
   statusEducacao, statusFundeb, statusSaude, statusPessoal,
   formatBRL, formatPct, LABEL_STATUS,
 } from "@/lib/calculos-lrf";
