@@ -397,6 +397,66 @@ export type Database = {
           },
         ]
       }
+      tcmgo_ppaloa_status: {
+        Row: {
+          ano_referencia: number
+          cliente_id: string
+          data_envio: string | null
+          enviado: boolean
+          id: string
+          municipio_tcmgo_id: number
+          nome_municipio: string | null
+          numero_recibo: string | null
+          reenvios: Json | null
+          total_reenvios: number | null
+          ultimo_reenvio_em: string | null
+          verificado_em: string | null
+        }
+        Insert: {
+          ano_referencia: number
+          cliente_id: string
+          data_envio?: string | null
+          enviado?: boolean
+          id?: string
+          municipio_tcmgo_id: number
+          nome_municipio?: string | null
+          numero_recibo?: string | null
+          reenvios?: Json | null
+          total_reenvios?: number | null
+          ultimo_reenvio_em?: string | null
+          verificado_em?: string | null
+        }
+        Update: {
+          ano_referencia?: number
+          cliente_id?: string
+          data_envio?: string | null
+          enviado?: boolean
+          id?: string
+          municipio_tcmgo_id?: number
+          nome_municipio?: string | null
+          numero_recibo?: string | null
+          reenvios?: Json | null
+          total_reenvios?: number | null
+          ultimo_reenvio_em?: string | null
+          verificado_em?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tcmgo_ppaloa_status_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tcmgo_ppaloa_status_municipio_tcmgo_id_fkey"
+            columns: ["municipio_tcmgo_id"]
+            isOneToOne: false
+            referencedRelation: "tcmgo_municipios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tcmgo_sync_log: {
         Row: {
           detalhes: Json | null
