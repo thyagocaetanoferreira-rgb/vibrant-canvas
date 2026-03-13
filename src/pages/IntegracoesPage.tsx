@@ -13,6 +13,7 @@ interface UltimoLog {
   status: string;
   total_registros: number;
   finalizado_em: string;
+  detalhes?: { municipio_nome?: string } | null;
 }
 
 interface MunicipioTCMGO {
