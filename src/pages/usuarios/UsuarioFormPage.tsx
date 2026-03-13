@@ -246,8 +246,36 @@ const UsuarioFormPage = () => {
           p_perfil: perfil as any,
         });
       }
+
+      // Update auth password if changed
+      if (senha) {
+        const { data: usr } = await supabase.from("usuarios").select("auth_id").eq("id", id).single();
+        if (usr?.auth_id) {
+          const { data: authRes, error: authErr } = await supabase.functions.invoke("manage-auth-user", {
+            body: { action: "update_password", auth_id: usr.auth_id, password: senha },
+          });
+          if (authErr || authRes?.error) {
+            toast({ title: "Usuário salvo, mas erro ao atualizar senha de login", description: authRes?.error || authErr?.message, variant: "destructive" });
+          }
+        } else {
+          // User exists but has no auth record — create one
+          const { data: authRes, error: authErr } = await supabase.functions.invoke("manage-auth-user", {
+            body: { action: "create", email, password: senha, usuario_id: id },
+          });
+          if (authErr || authRes?.error) {
+            toast({ title: "Usuário salvo, mas erro ao criar login", description: authRes?.error || authErr?.message, variant: "destructive" });
+          }
+        }
+      }
+
       toast({ title: "Usuário atualizado com sucesso!" });
     } else {
+      if (!senha) {
+        toast({ title: "Senha é obrigatória para novo usuário", variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+
       const { data: newUser, error } = await supabase.from("usuarios").insert(userData).select().single();
       if (error) {
         toast({ title: "Erro ao criar", description: error.message, variant: "destructive" });
@@ -259,6 +287,15 @@ const UsuarioFormPage = () => {
         p_usuario_id: newUser.id,
         p_perfil: perfil as any,
       });
+
+      // Create auth user and link auth_id
+      const { data: authRes, error: authErr } = await supabase.functions.invoke("manage-auth-user", {
+        body: { action: "create", email, password: senha, usuario_id: newUser.id },
+      });
+      if (authErr || authRes?.error) {
+        toast({ title: "Usuário criado, mas erro ao criar login", description: authRes?.error || authErr?.message, variant: "destructive" });
+      }
+
       toast({ title: "Usuário criado com sucesso!" });
     }
 
