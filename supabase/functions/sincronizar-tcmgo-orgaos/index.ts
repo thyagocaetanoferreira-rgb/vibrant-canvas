@@ -90,6 +90,7 @@ Deno.serve(async (req) => {
             status: "sucesso",
             total_registros: 0,
             finalizado_em: new Date().toISOString(),
+            detalhes: { municipio_nome: mun.descricao },
           })
           .eq("id", logId);
       }

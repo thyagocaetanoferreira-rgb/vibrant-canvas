@@ -338,6 +338,11 @@ function SincronizacaoOrgaosCard() {
               <CheckCircle className="w-4 h-4 text-accent" />
               Última sincronização: {formatarData(ultimoLog.finalizado_em)}
             </div>
+            {ultimoLog.detalhes?.municipio_nome && (
+              <div className="text-muted-foreground">
+                Município: <strong>{ultimoLog.detalhes.municipio_nome}</strong>
+              </div>
+            )}
             <div className="text-muted-foreground">
               Total de registros:{" "}
               <strong>{ultimoLog.total_registros} órgãos</strong>
