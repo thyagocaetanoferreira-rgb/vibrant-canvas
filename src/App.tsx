@@ -11,6 +11,7 @@ import EntregasPage from "@/pages/EntregasPage";
 import DemandasPage from "@/pages/DemandasPage";
 import JuridicoPage from "@/pages/JuridicoPage";
 import RiscosPage from "@/pages/RiscosPage";
+import IntegracoesPage from "@/pages/IntegracoesPage";
 import ModulePlaceholder from "@/components/ModulePlaceholder";
 import NotFound from "./pages/NotFound";
 import LoginPage from "@/pages/LoginPage";
