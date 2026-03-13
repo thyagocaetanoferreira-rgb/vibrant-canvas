@@ -12,6 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Eye, EyeOff, Check, X, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import MunicipioMultiSelect from "@/components/MunicipioMultiSelect";
+
+const PERFIS_MULTI_MUNICIPIO = ["Administrador", "Comercial", "Juridico", "Suporte"];
 
 const PERFIS = [
   { value: "Administrador", label: "Administrador", desc: "Acesso total ao sistema" },
@@ -45,6 +48,7 @@ const UsuarioFormPage = () => {
   const [telefone, setTelefone] = useState("");
   const [perfil, setPerfil] = useState("");
   const [municipioId, setMunicipioId] = useState("");
+  const [municipioIds, setMunicipioIds] = useState<number[]>([]);
   const [ativo, setAtivo] = useState(true);
   const [fotoUrl, setFotoUrl] = useState<string | null>(null);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
@@ -81,6 +85,17 @@ const UsuarioFormPage = () => {
           setMunicipioId(String(data.municipio_id));
           setAtivo(data.ativo);
           setFotoUrl(data.foto_url);
+
+          // Load additional municipalities
+          const { data: extraMunicipios } = await supabase
+            .from("usuario_municipios")
+            .select("municipio_id")
+            .eq("usuario_id", id);
+          if (extraMunicipios && extraMunicipios.length > 0) {
+            setMunicipioIds(extraMunicipios.map((m: any) => m.municipio_id));
+          } else {
+            setMunicipioIds(data.municipio_id ? [data.municipio_id] : []);
+          }
         }
       };
       fetchUsuario();
@@ -138,6 +153,8 @@ const UsuarioFormPage = () => {
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
   };
 
+  const isMultiMunicipio = PERFIS_MULTI_MUNICIPIO.includes(perfil);
+
   const validate = () => {
     const errs: Record<string, string> = {};
     if (!nome.trim()) errs.nome = "Nome é obrigatório";
@@ -151,7 +168,11 @@ const UsuarioFormPage = () => {
     if (senha && !/[0-9]/.test(senha)) errs.senha = "Deve ter ao menos 1 número";
     if (senha && senha !== senhaConfirm) errs.senhaConfirm = "Senhas não conferem";
     if (!perfil) errs.perfil = "Perfil é obrigatório";
-    if (!municipioId) errs.municipioId = "Município é obrigatório";
+    if (isMultiMunicipio) {
+      if (municipioIds.length === 0) errs.municipioId = "Selecione ao menos um município";
+    } else {
+      if (!municipioId) errs.municipioId = "Município é obrigatório";
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -171,15 +192,28 @@ const UsuarioFormPage = () => {
       }
     }
 
+    const primaryMunicipioId = isMultiMunicipio ? (municipioIds[0] || 0) : parseInt(municipioId);
+
     const userData = {
       nome,
       username,
       email,
       telefone: telefone || null,
       perfil: perfil as any,
-      municipio_id: parseInt(municipioId),
+      municipio_id: primaryMunicipioId,
       ativo,
       foto_url: uploadedFotoUrl,
+    };
+
+    const saveMultiMunicipios = async (userId: string) => {
+      // Delete old entries
+      await supabase.from("usuario_municipios").delete().eq("usuario_id", userId);
+      // Insert new if multi-municipio profile
+      if (isMultiMunicipio && municipioIds.length > 0) {
+        await supabase.from("usuario_municipios").insert(
+          municipioIds.map((mid) => ({ usuario_id: userId, municipio_id: mid }))
+        );
+      }
     };
 
     if (isEdit && id) {
@@ -189,7 +223,7 @@ const UsuarioFormPage = () => {
         setSaving(false);
         return;
       }
-      // If profile changed, recopy permissions
+      await saveMultiMunicipios(id);
       if (perfil !== perfilOriginal) {
         await supabase.rpc("copiar_permissoes_perfil", {
           p_usuario_id: id,
@@ -204,7 +238,7 @@ const UsuarioFormPage = () => {
         setSaving(false);
         return;
       }
-      // Copy profile permissions
+      await saveMultiMunicipios(newUser.id);
       await supabase.rpc("copiar_permissoes_perfil", {
         p_usuario_id: newUser.id,
         p_perfil: perfil as any,
@@ -402,22 +436,33 @@ const UsuarioFormPage = () => {
       {/* Município */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Município *</CardTitle>
+          <CardTitle className="text-lg">{isMultiMunicipio ? "Municípios *" : "Município *"}</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Município vinculado — este usuário só verá dados deste município
+            {isMultiMunicipio
+              ? "Municípios vinculados — este usuário poderá acessar dados de todos os municípios selecionados"
+              : "Município vinculado — este usuário só verá dados deste município"}
           </p>
         </CardHeader>
         <CardContent>
-          <Select value={municipioId} onValueChange={setMunicipioId}>
-            <SelectTrigger className="w-full max-w-sm">
-              <SelectValue placeholder="Selecione o município" />
-            </SelectTrigger>
-            <SelectContent>
-              {municipios.map((m) => (
-                <SelectItem key={m.id} value={String(m.id)}>{m.nome}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {isMultiMunicipio ? (
+            <MunicipioMultiSelect
+              municipios={municipios}
+              selected={municipioIds}
+              onChange={setMunicipioIds}
+              placeholder="Pesquisar e selecionar municípios"
+            />
+          ) : (
+            <Select value={municipioId} onValueChange={setMunicipioId}>
+              <SelectTrigger className="w-full max-w-sm">
+                <SelectValue placeholder="Selecione o município" />
+              </SelectTrigger>
+              <SelectContent>
+                {municipios.map((m) => (
+                  <SelectItem key={m.id} value={String(m.id)}>{m.nome}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           {errors.municipioId && <p className="text-sm text-destructive mt-2">{errors.municipioId}</p>}
         </CardContent>
       </Card>

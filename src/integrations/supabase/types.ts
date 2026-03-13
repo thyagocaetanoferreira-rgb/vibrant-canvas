@@ -160,6 +160,39 @@ export type Database = {
           },
         ]
       }
+      usuario_municipios: {
+        Row: {
+          id: number
+          municipio_id: number
+          usuario_id: string
+        }
+        Insert: {
+          id?: number
+          municipio_id: number
+          usuario_id: string
+        }
+        Update: {
+          id?: number
+          municipio_id?: number
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usuario_municipios_municipio_id_fkey"
+            columns: ["municipio_id"]
+            isOneToOne: false
+            referencedRelation: "municipios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usuario_municipios_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       usuarios: {
         Row: {
           ativo: boolean | null
