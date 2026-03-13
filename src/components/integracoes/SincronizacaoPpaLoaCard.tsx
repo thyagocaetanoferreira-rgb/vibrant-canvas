@@ -131,7 +131,7 @@ export default function SincronizacaoPpaLoaCard() {
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
           Verifica se o PPA e a LOA de cada município cliente foram enviados ao
-          Tribunal de Contas de Goiás. Verificação automática diária às 06:05.
+          Tribunal de Contas de Goiás.
         </p>
 
         {/* Year selector */}
@@ -207,7 +207,7 @@ export default function SincronizacaoPpaLoaCard() {
         </Button>
 
         <p className="text-xs text-muted-foreground text-center">
-          🤖 Verificação automática diária. Clique para verificar manualmente.
+          A verificação é manual. Clique no botão para buscar dados atualizados.
         </p>
       </CardContent>
     </Card>
