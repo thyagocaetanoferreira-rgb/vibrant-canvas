@@ -111,6 +111,12 @@ function SincronizacaoCard({
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">{descricao}</p>
 
+        {aviso && (
+          <p className="text-sm font-medium text-destructive bg-destructive/10 rounded-md px-3 py-2">
+            ⚠️ {aviso}
+          </p>
+        )}
+
         {ultimoLog && (
           <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
             <div className="flex items-center gap-2 text-accent-foreground font-medium">
