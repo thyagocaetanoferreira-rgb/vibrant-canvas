@@ -266,6 +266,69 @@ export type Database = {
           },
         ]
       }
+      tcmgo_balancetes_status: {
+        Row: {
+          ano_referencia: number
+          cliente_id: string
+          cnpj_municipio: string | null
+          codigo_orgao: string
+          data_envio: string | null
+          descricao_orgao: string | null
+          enviado: boolean
+          id: string
+          mes_referencia: number
+          municipio_tcmgo_id: number
+          nome_municipio: string | null
+          numero_recibo: string | null
+          verificado_em: string | null
+        }
+        Insert: {
+          ano_referencia: number
+          cliente_id: string
+          cnpj_municipio?: string | null
+          codigo_orgao: string
+          data_envio?: string | null
+          descricao_orgao?: string | null
+          enviado?: boolean
+          id?: string
+          mes_referencia: number
+          municipio_tcmgo_id: number
+          nome_municipio?: string | null
+          numero_recibo?: string | null
+          verificado_em?: string | null
+        }
+        Update: {
+          ano_referencia?: number
+          cliente_id?: string
+          cnpj_municipio?: string | null
+          codigo_orgao?: string
+          data_envio?: string | null
+          descricao_orgao?: string | null
+          enviado?: boolean
+          id?: string
+          mes_referencia?: number
+          municipio_tcmgo_id?: number
+          nome_municipio?: string | null
+          numero_recibo?: string | null
+          verificado_em?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tcmgo_balancetes_status_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tcmgo_balancetes_status_municipio_tcmgo_id_fkey"
+            columns: ["municipio_tcmgo_id"]
+            isOneToOne: false
+            referencedRelation: "tcmgo_municipios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tcmgo_municipios: {
         Row: {
           atualizado_em: string | null
