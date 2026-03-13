@@ -1,5 +1,10 @@
 import { cn } from "@/lib/utils";
-import { useAppContext, municipios } from "@/contexts/AppContext";
+import { useAppContext } from "@/contexts/AppContext";
+
+const municipiosDemo = [
+  "Ipameri", "Catalão", "Goiandira", "Ouvidor", "Corumbaíba",
+  "Urutaí", "Pires do Rio", "Silvânia", "Vianópolis", "Caldas Novas",
+];
 import { CheckCircle2, XCircle } from "lucide-react";
 
 const caucItems = [

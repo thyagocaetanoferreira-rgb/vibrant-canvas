@@ -34,7 +34,7 @@ const EntregasPage = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-heading font-bold text-foreground">Controle de Envios</h1>
-        <p className="text-sm text-muted-foreground mt-1">TCM-GO · {municipio} · {anoExercicio}</p>
+        <p className="text-sm text-muted-foreground mt-1">TCM-GO · {municipio?.municipioNome || "—"} · {anoExercicio}</p>
       </div>
 
       {/* Legend */}
