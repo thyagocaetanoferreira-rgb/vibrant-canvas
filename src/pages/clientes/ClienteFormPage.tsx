@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { MapPin, Check, Eye, EyeOff, Loader2 } from "lucide-react";
+import { MapPin, Check, Eye, EyeOff, Loader2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Municipio {
