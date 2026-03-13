@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      modulos: {
+        Row: {
+          chave: string
+          descricao: string | null
+          id: number
+          nome: string
+          ordem: number | null
+        }
+        Insert: {
+          chave: string
+          descricao?: string | null
+          id?: number
+          nome: string
+          ordem?: number | null
+        }
+        Update: {
+          chave?: string
+          descricao?: string | null
+          id?: number
+          nome?: string
+          ordem?: number | null
+        }
+        Relationships: []
+      }
       municipios: {
         Row: {
           capital: boolean
@@ -53,15 +77,163 @@ export type Database = {
         }
         Relationships: []
       }
+      permissoes_perfil: {
+        Row: {
+          id: number
+          modulo_id: number
+          perfil: Database["public"]["Enums"]["tipo_perfil"]
+          pode_criar: boolean | null
+          pode_editar: boolean | null
+          pode_excluir: boolean | null
+          pode_ver: boolean | null
+        }
+        Insert: {
+          id?: number
+          modulo_id: number
+          perfil: Database["public"]["Enums"]["tipo_perfil"]
+          pode_criar?: boolean | null
+          pode_editar?: boolean | null
+          pode_excluir?: boolean | null
+          pode_ver?: boolean | null
+        }
+        Update: {
+          id?: number
+          modulo_id?: number
+          perfil?: Database["public"]["Enums"]["tipo_perfil"]
+          pode_criar?: boolean | null
+          pode_editar?: boolean | null
+          pode_excluir?: boolean | null
+          pode_ver?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permissoes_perfil_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: false
+            referencedRelation: "modulos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permissoes_usuario: {
+        Row: {
+          id: number
+          modulo_id: number
+          pode_criar: boolean | null
+          pode_editar: boolean | null
+          pode_excluir: boolean | null
+          pode_ver: boolean | null
+          usuario_id: string
+        }
+        Insert: {
+          id?: number
+          modulo_id: number
+          pode_criar?: boolean | null
+          pode_editar?: boolean | null
+          pode_excluir?: boolean | null
+          pode_ver?: boolean | null
+          usuario_id: string
+        }
+        Update: {
+          id?: number
+          modulo_id?: number
+          pode_criar?: boolean | null
+          pode_editar?: boolean | null
+          pode_excluir?: boolean | null
+          pode_ver?: boolean | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permissoes_usuario_modulo_id_fkey"
+            columns: ["modulo_id"]
+            isOneToOne: false
+            referencedRelation: "modulos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "permissoes_usuario_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      usuarios: {
+        Row: {
+          ativo: boolean | null
+          atualizado_em: string | null
+          auth_id: string | null
+          criado_em: string | null
+          email: string
+          foto_url: string | null
+          id: string
+          municipio_id: number
+          nome: string
+          perfil: Database["public"]["Enums"]["tipo_perfil"]
+          telefone: string | null
+          username: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          auth_id?: string | null
+          criado_em?: string | null
+          email: string
+          foto_url?: string | null
+          id?: string
+          municipio_id: number
+          nome: string
+          perfil: Database["public"]["Enums"]["tipo_perfil"]
+          telefone?: string | null
+          username: string
+        }
+        Update: {
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          auth_id?: string | null
+          criado_em?: string | null
+          email?: string
+          foto_url?: string | null
+          id?: string
+          municipio_id?: number
+          nome?: string
+          perfil?: Database["public"]["Enums"]["tipo_perfil"]
+          telefone?: string | null
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usuarios_municipio_id_fkey"
+            columns: ["municipio_id"]
+            isOneToOne: false
+            referencedRelation: "municipios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      copiar_permissoes_perfil: {
+        Args: {
+          p_perfil: Database["public"]["Enums"]["tipo_perfil"]
+          p_usuario_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
-      [_ in never]: never
+      tipo_perfil:
+        | "Administrador"
+        | "Auxiliar"
+        | "Comercial"
+        | "Coordenador"
+        | "Juridico"
+        | "Suporte"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -188,6 +360,15 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      tipo_perfil: [
+        "Administrador",
+        "Auxiliar",
+        "Comercial",
+        "Coordenador",
+        "Juridico",
+        "Suporte",
+      ],
+    },
   },
 } as const
