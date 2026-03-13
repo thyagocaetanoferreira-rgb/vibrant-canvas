@@ -323,7 +323,7 @@ const DiagnosticoFormPage = () => {
         {/* ABA 2 — DESPESAS */}
         <TabsContent value="despesas" className="bg-card rounded-xl border border-border p-6 space-y-4 mt-4">
           <h3 className="font-heading font-semibold text-card-foreground">Despesas</h3>
-          <MoneyInput label="Despesa Fixada" value={form.despesa_fixada} onChange={(v) => set("despesa_fixada", v)} required />
+          
           <div className="space-y-2">
             <Label className="text-sm font-medium text-card-foreground">Despesa Empenhada</Label>
             <div className="grid grid-cols-2 gap-4">
