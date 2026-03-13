@@ -15,8 +15,12 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Read CSV from request body
-    const csvText = await req.text();
+    // Get CSV URL from request body
+    const { csv_url } = await req.json();
+    
+    // Fetch CSV
+    const response = await fetch(csv_url);
+    const csvText = await response.text();
     const lines = csvText.trim().split("\n");
     
     // Skip header
@@ -30,7 +34,6 @@ Deno.serve(async (req) => {
       const rows = batch.map((line) => {
         const parts = line.split(",");
         const codigo_ibge = parseInt(parts[0]);
-        // Nome pode conter vírgulas? Não neste CSV, mas vamos ser seguros
         const nome = parts[1];
         const latitude = parseFloat(parts[2]);
         const longitude = parseFloat(parts[3]);
@@ -38,7 +41,7 @@ Deno.serve(async (req) => {
         const codigo_uf = parseInt(parts[5]);
         const siafi_id = parseInt(parts[6]);
         const ddd = parseInt(parts[7]);
-        const fuso_horario = parts[8];
+        const fuso_horario = parts[8]?.trim();
 
         return {
           id: codigo_ibge,
@@ -56,7 +59,7 @@ Deno.serve(async (req) => {
 
       const { error } = await supabase.from("municipios").upsert(rows, { onConflict: "id" });
       if (error) {
-        throw new Error(`Batch ${i}: ${error.message}`);
+        throw new Error(`Batch starting at ${i}: ${error.message}`);
       }
       inserted += rows.length;
     }
