@@ -3,13 +3,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAppContext } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RefreshCw, CheckCircle, Building2, Landmark } from "lucide-react";
+import { RefreshCw, CheckCircle, Building2, Landmark, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 
 interface UltimoLog {
   status: string;
   total_registros: number;
   finalizado_em: string;
+}
+
+interface MunicipioTCMGO {
+  id: number;
+  descricao: string;
 }
 
 function formatarData(iso: string) {
@@ -52,7 +60,6 @@ function SincronizacaoCard({
         .order("finalizado_em", { ascending: false })
         .limit(1);
 
-      // Filter by tipo if the column exists (for órgãos)
       if (tipoLog !== "municipios") {
         query = query.eq("tipo", tipoLog);
       }
@@ -135,8 +142,227 @@ function SincronizacaoCard({
         </Button>
 
         <p className="text-xs text-muted-foreground text-center">
-          A sincronização é manual. Clique no botão para buscar dados
-          atualizados.
+          A sincronização é manual. Clique no botão para buscar dados atualizados.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SincronizacaoOrgaosCard() {
+  const { usuario } = useAppContext();
+  const [carregando, setCarregando] = useState(false);
+  const [ultimoLog, setUltimoLog] = useState<UltimoLog | null>(null);
+
+  // Municipality selector state
+  const [municipios, setMunicipios] = useState<MunicipioTCMGO[]>([]);
+  const [busca, setBusca] = useState("");
+  const [municipioSelecionado, setMunicipioSelecionado] = useState<MunicipioTCMGO | null>(null);
+  const [popoverAberto, setPopoverAberto] = useState(false);
+  const [carregandoMunicipios, setCarregandoMunicipios] = useState(false);
+
+  // Load municipalities from tcmgo_municipios (paginated)
+  useEffect(() => {
+    async function carregarMunicipios() {
+      setCarregandoMunicipios(true);
+      const todos: MunicipioTCMGO[] = [];
+      const PAGE_SIZE = 1000;
+      let page = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const from = page * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+        const { data } = await supabase
+          .from("tcmgo_municipios")
+          .select("id, descricao")
+          .order("descricao")
+          .range(from, to);
+
+        if (data && data.length > 0) {
+          todos.push(...data);
+          if (data.length < PAGE_SIZE) hasMore = false;
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setMunicipios(todos);
+      setCarregandoMunicipios(false);
+    }
+    carregarMunicipios();
+  }, []);
+
+  useEffect(() => {
+    async function carregarUltimoLog() {
+      const { data } = await supabase
+        .from("tcmgo_sync_log")
+        .select("status, total_registros, finalizado_em")
+        .eq("status", "sucesso")
+        .eq("tipo", "orgaos")
+        .order("finalizado_em", { ascending: false })
+        .limit(1)
+        .single();
+      if (data) setUltimoLog(data);
+    }
+    carregarUltimoLog();
+  }, []);
+
+  const municipiosFiltrados = busca.trim()
+    ? municipios.filter((m) =>
+        m.descricao.toLowerCase().includes(busca.toLowerCase())
+      )
+    : municipios;
+
+  async function handleSincronizar() {
+    if (!municipioSelecionado) {
+      toast.error("Selecione um município antes de sincronizar.");
+      return;
+    }
+
+    setCarregando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "sincronizar-tcmgo-orgaos",
+        {
+          body: {
+            usuario_id: usuario?.id,
+            municipio_id: municipioSelecionado.id,
+          },
+        }
+      );
+
+      if (error) throw new Error(error.message);
+      if (!data?.sucesso) throw new Error(data?.mensagem ?? "Erro desconhecido");
+
+      toast.success(`✅ ${data.mensagem}`);
+      setUltimoLog({
+        status: "sucesso",
+        total_registros: data.total,
+        finalizado_em: new Date().toISOString(),
+      });
+    } catch (erro: any) {
+      toast.error(`❌ Erro: ${erro.message}`);
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  return (
+    <Card className="border border-border">
+      <CardHeader className="flex flex-row items-center gap-3 pb-2">
+        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Landmark className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <CardTitle className="text-base font-semibold">
+            Órgãos TCM-GO
+          </CardTitle>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Fonte: ws.tcm.go.gov.br
+          </p>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Importa os órgãos de um município do TCM-GO. Selecione o município
+          desejado e clique em sincronizar.
+        </p>
+
+        {/* Municipality selector */}
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium text-foreground">
+            Município *
+          </label>
+          <Popover open={popoverAberto} onOpenChange={setPopoverAberto}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full justify-between font-normal"
+                disabled={carregandoMunicipios}
+              >
+                {carregandoMunicipios
+                  ? "Carregando municípios..."
+                  : municipioSelecionado
+                  ? municipioSelecionado.descricao
+                  : "Selecione o município"}
+                <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+              <div className="p-2 border-b border-border">
+                <Input
+                  placeholder="Buscar município..."
+                  value={busca}
+                  onChange={(e) => setBusca(e.target.value)}
+                  className="h-8"
+                  autoFocus
+                />
+              </div>
+              <ScrollArea className="h-[200px]">
+                {municipiosFiltrados.length === 0 ? (
+                  <p className="text-sm text-muted-foreground p-3 text-center">
+                    Nenhum município encontrado
+                  </p>
+                ) : (
+                  municipiosFiltrados.slice(0, 100).map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => {
+                        setMunicipioSelecionado(m);
+                        setPopoverAberto(false);
+                        setBusca("");
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors ${
+                        municipioSelecionado?.id === m.id
+                          ? "bg-primary/10 text-primary font-medium"
+                          : ""
+                      }`}
+                    >
+                      {m.descricao}
+                    </button>
+                  ))
+                )}
+              </ScrollArea>
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        {ultimoLog && (
+          <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
+            <div className="flex items-center gap-2 text-accent-foreground font-medium">
+              <CheckCircle className="w-4 h-4 text-accent" />
+              Última sincronização: {formatarData(ultimoLog.finalizado_em)}
+            </div>
+            <div className="text-muted-foreground">
+              Total de registros:{" "}
+              <strong>{ultimoLog.total_registros} órgãos</strong>
+            </div>
+          </div>
+        )}
+
+        <Button
+          onClick={handleSincronizar}
+          disabled={carregando || !municipioSelecionado}
+          className="w-full"
+        >
+          {carregando ? (
+            <>
+              <RefreshCw className="mr-2 w-4 h-4 animate-spin" />
+              Sincronizando...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="mr-2 w-4 h-4" />
+              Sincronizar Agora
+            </>
+          )}
+        </Button>
+
+        <p className="text-xs text-muted-foreground text-center">
+          Selecione um município e clique para importar seus órgãos.
         </p>
       </CardContent>
     </Card>
@@ -166,15 +392,7 @@ export default function IntegracoesPage() {
           labelRegistros="municípios"
         />
 
-        <SincronizacaoCard
-          titulo="Órgãos TCM-GO"
-          descricao="Importa os órgãos de cada município cadastrado no TCM-GO. Requer que os municípios já estejam sincronizados. Percorre todos os municípios e busca seus órgãos."
-          fonte="ws.tcm.go.gov.br"
-          icone={Landmark}
-          functionName="sincronizar-tcmgo-orgaos"
-          tipoLog="orgaos"
-          labelRegistros="órgãos"
-        />
+        <SincronizacaoOrgaosCard />
       </div>
     </div>
   );
