@@ -326,6 +326,7 @@ export type Database = {
       }
       tcmgo_sync_log: {
         Row: {
+          detalhes: Json | null
           finalizado_em: string | null
           id: string
           iniciado_em: string | null
@@ -336,6 +337,7 @@ export type Database = {
           usuario_id: string | null
         }
         Insert: {
+          detalhes?: Json | null
           finalizado_em?: string | null
           id?: string
           iniciado_em?: string | null
@@ -346,6 +348,7 @@ export type Database = {
           usuario_id?: string | null
         }
         Update: {
+          detalhes?: Json | null
           finalizado_em?: string | null
           id?: string
           iniciado_em?: string | null

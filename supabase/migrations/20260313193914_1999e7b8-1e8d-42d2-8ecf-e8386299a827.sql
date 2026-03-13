@@ -1,0 +1,1 @@
+ALTER TABLE public.tcmgo_sync_log ADD COLUMN detalhes jsonb DEFAULT NULL;
