@@ -48,6 +48,9 @@ const App = () => (
               <Route path="/usuarios/novo" element={<UsuarioFormPage />} />
               <Route path="/usuarios/:id/editar" element={<UsuarioFormPage />} />
               <Route path="/usuarios/:id/permissoes" element={<UsuarioPermissoesPage />} />
+              <Route path="/clientes" element={<ClientesListPage />} />
+              <Route path="/clientes/novo" element={<ClienteFormPage />} />
+              <Route path="/clientes/:id/editar" element={<ClienteFormPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
