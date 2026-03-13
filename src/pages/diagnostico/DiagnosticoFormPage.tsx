@@ -350,7 +350,7 @@ const DiagnosticoFormPage = () => {
             <MoneyInput label="Caixa" value={form.caixa} onChange={(v) => set("caixa", v)} required />
             <MoneyInput label="Consignações / Tesouraria" value={form.consignacoes_tesouraria} onChange={(v) => set("consignacoes_tesouraria", v)} required />
           </div>
-          <h4 className="text-sm font-medium text-card-foreground pt-2">Restos a Pagar</h4>
+          
           <div className="grid grid-cols-2 gap-4">
             <MoneyInput label="Despesa não processada" value={form.despesa_nao_processada} onChange={(v) => set("despesa_nao_processada", v)} required />
             <MoneyInput label="Despesa Processada" value={form.despesa_processada} onChange={(v) => set("despesa_processada", v)} required />
