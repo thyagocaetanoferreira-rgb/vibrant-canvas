@@ -9,6 +9,7 @@ import { Eye, EyeOff, User, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 const LoginPage = () => {
+  const navigate = useNavigate();
   const { usuario, authLoading } = useAppContext();
   const [identifier, setIdentifier] = useState("");
   const [senha, setSenha] = useState("");
