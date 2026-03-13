@@ -352,10 +352,10 @@ const DiagnosticoFormPage = () => {
           </div>
           <h4 className="text-sm font-medium text-card-foreground pt-2">Restos a Pagar</h4>
           <div className="grid grid-cols-2 gap-4">
-            <MoneyInput label="Despesa não processada" value={form.despesa_nao_processada} onChange={(v) => set("despesa_nao_processada", v)} />
-            <MoneyInput label="Despesa Processada" value={form.despesa_processada} onChange={(v) => set("despesa_processada", v)} />
-            <MoneyInput label="Resto não processado" value={form.resto_nao_processado} onChange={(v) => set("resto_nao_processado", v)} />
-            <MoneyInput label="Resto processado" value={form.resto_processado} onChange={(v) => set("resto_processado", v)} />
+            <MoneyInput label="Despesa não processada" value={form.despesa_nao_processada} onChange={(v) => set("despesa_nao_processada", v)} required />
+            <MoneyInput label="Despesa Processada" value={form.despesa_processada} onChange={(v) => set("despesa_processada", v)} required />
+            <MoneyInput label="Resto não processado" value={form.resto_nao_processado} onChange={(v) => set("resto_nao_processado", v)} required />
+            <MoneyInput label="Resto processado" value={form.resto_processado} onChange={(v) => set("resto_processado", v)} required />
           </div>
           <div className="bg-muted/30 rounded-lg px-4 py-3 text-sm text-muted-foreground space-y-1">
             <p>Resultado Financeiro (calculado):</p>
