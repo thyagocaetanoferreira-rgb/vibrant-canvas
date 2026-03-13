@@ -120,6 +120,144 @@ export type Database = {
           },
         ]
       }
+      lancamentos_mensais: {
+        Row: {
+          ano_referencia: number
+          aplicacao_educacao: number | null
+          aplicacao_fundeb_70: number | null
+          aplicacao_saude: number | null
+          atualizado_em: string | null
+          caixa: number | null
+          cliente_id: string
+          consignacoes_tesouraria: number | null
+          criado_em: string | null
+          criado_por: string | null
+          despesa_empenhada_f1: number | null
+          despesa_empenhada_f2: number | null
+          despesa_fixada: number | null
+          despesa_liquidada: number | null
+          despesa_nao_processada: number | null
+          despesa_paga: number | null
+          despesa_processada: number | null
+          excesso_projetado: number | null
+          gasto_pessoal: number | null
+          id: string
+          mes_referencia: number
+          observacoes: string | null
+          receita_corrente_liquida: number | null
+          receita_fundeb: number | null
+          receita_prevista_ano: number | null
+          receita_realizada: number | null
+          resto_nao_processado: number | null
+          resto_processado: number | null
+          status: string | null
+          superavit_exerc_anterior: number | null
+          supl_anulacao_autorizada: number | null
+          supl_anulacao_perc: number | null
+          supl_anulacao_utilizado: number | null
+          supl_excesso_perc: number | null
+          supl_excesso_utilizado: number | null
+          supl_superavit_autorizada: number | null
+          supl_superavit_perc: number | null
+          supl_superavit_utilizado: number | null
+        }
+        Insert: {
+          ano_referencia: number
+          aplicacao_educacao?: number | null
+          aplicacao_fundeb_70?: number | null
+          aplicacao_saude?: number | null
+          atualizado_em?: string | null
+          caixa?: number | null
+          cliente_id: string
+          consignacoes_tesouraria?: number | null
+          criado_em?: string | null
+          criado_por?: string | null
+          despesa_empenhada_f1?: number | null
+          despesa_empenhada_f2?: number | null
+          despesa_fixada?: number | null
+          despesa_liquidada?: number | null
+          despesa_nao_processada?: number | null
+          despesa_paga?: number | null
+          despesa_processada?: number | null
+          excesso_projetado?: number | null
+          gasto_pessoal?: number | null
+          id?: string
+          mes_referencia: number
+          observacoes?: string | null
+          receita_corrente_liquida?: number | null
+          receita_fundeb?: number | null
+          receita_prevista_ano?: number | null
+          receita_realizada?: number | null
+          resto_nao_processado?: number | null
+          resto_processado?: number | null
+          status?: string | null
+          superavit_exerc_anterior?: number | null
+          supl_anulacao_autorizada?: number | null
+          supl_anulacao_perc?: number | null
+          supl_anulacao_utilizado?: number | null
+          supl_excesso_perc?: number | null
+          supl_excesso_utilizado?: number | null
+          supl_superavit_autorizada?: number | null
+          supl_superavit_perc?: number | null
+          supl_superavit_utilizado?: number | null
+        }
+        Update: {
+          ano_referencia?: number
+          aplicacao_educacao?: number | null
+          aplicacao_fundeb_70?: number | null
+          aplicacao_saude?: number | null
+          atualizado_em?: string | null
+          caixa?: number | null
+          cliente_id?: string
+          consignacoes_tesouraria?: number | null
+          criado_em?: string | null
+          criado_por?: string | null
+          despesa_empenhada_f1?: number | null
+          despesa_empenhada_f2?: number | null
+          despesa_fixada?: number | null
+          despesa_liquidada?: number | null
+          despesa_nao_processada?: number | null
+          despesa_paga?: number | null
+          despesa_processada?: number | null
+          excesso_projetado?: number | null
+          gasto_pessoal?: number | null
+          id?: string
+          mes_referencia?: number
+          observacoes?: string | null
+          receita_corrente_liquida?: number | null
+          receita_fundeb?: number | null
+          receita_prevista_ano?: number | null
+          receita_realizada?: number | null
+          resto_nao_processado?: number | null
+          resto_processado?: number | null
+          status?: string | null
+          superavit_exerc_anterior?: number | null
+          supl_anulacao_autorizada?: number | null
+          supl_anulacao_perc?: number | null
+          supl_anulacao_utilizado?: number | null
+          supl_excesso_perc?: number | null
+          supl_excesso_utilizado?: number | null
+          supl_superavit_autorizada?: number | null
+          supl_superavit_perc?: number | null
+          supl_superavit_utilizado?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lancamentos_mensais_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_mensais_criado_por_fkey"
+            columns: ["criado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       modulos: {
         Row: {
           chave: string
