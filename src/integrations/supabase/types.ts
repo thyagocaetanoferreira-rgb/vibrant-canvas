@@ -14,7 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      municipios: {
+        Row: {
+          capital: boolean
+          codigo_ibge: number
+          codigo_uf: number
+          ddd: number | null
+          fuso_horario: string | null
+          id: number
+          latitude: number | null
+          longitude: number | null
+          nome: string
+          siafi_id: number | null
+        }
+        Insert: {
+          capital?: boolean
+          codigo_ibge: number
+          codigo_uf: number
+          ddd?: number | null
+          fuso_horario?: string | null
+          id: number
+          latitude?: number | null
+          longitude?: number | null
+          nome: string
+          siafi_id?: number | null
+        }
+        Update: {
+          capital?: boolean
+          codigo_ibge?: number
+          codigo_uf?: number
+          ddd?: number | null
+          fuso_horario?: string | null
+          id?: number
+          latitude?: number | null
+          longitude?: number | null
+          nome?: string
+          siafi_id?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
