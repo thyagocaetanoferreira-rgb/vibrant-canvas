@@ -9,6 +9,8 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Dashboard from "@/pages/Dashboard";
 import EntregasPage from "@/pages/EntregasPage";
 import DemandasPage from "@/pages/DemandasPage";
+import DiagnosticoListPage from "@/pages/diagnostico/DiagnosticoListPage";
+import DiagnosticoFormPage from "@/pages/diagnostico/DiagnosticoFormPage";
 import JuridicoPage from "@/pages/JuridicoPage";
 import RiscosPage from "@/pages/RiscosPage";
 import IntegracoesPage from "@/pages/IntegracoesPage";
@@ -47,6 +49,9 @@ const App = () => (
               <Route path="/" element={<Dashboard />} />
               <Route path="/entregas" element={<EntregasPage />} />
               <Route path="/demandas" element={<DemandasPage />} />
+              <Route path="/diagnostico" element={<DiagnosticoListPage />} />
+              <Route path="/diagnostico/novo" element={<DiagnosticoFormPage />} />
+              <Route path="/diagnostico/:id/editar" element={<DiagnosticoFormPage />} />
               <Route path="/juridico" element={<JuridicoPage />} />
               <Route path="/riscos" element={<RiscosPage />} />
               <Route path="/agenda" element={<ModulePlaceholder title="Agenda" description="Calendário unificado de visitas, reuniões e diligências" icon={Calendar} />} />
