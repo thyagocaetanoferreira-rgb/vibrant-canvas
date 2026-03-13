@@ -62,17 +62,23 @@ Deno.serve(async (req) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
 
-    const response = await fetch(`${BASE_URL}?id=${mun.id}`, {
+    const response = await fetch(`${BASE_URL}?id=${mun.id}&type=json`, {
       headers: { Accept: "application/json" },
       signal: controller.signal,
     });
     clearTimeout(timeout);
 
     if (!response.ok) {
-      throw new Error(`API TCM-GO retornou status ${response.status}`);
+      const errorText = await response.text();
+      throw new Error(`API TCM-GO retornou status ${response.status}: ${errorText.substring(0, 200)}`);
     }
 
-    const dados = await response.json();
+    const rawText = await response.text();
+    if (rawText.startsWith("<?xml") || rawText.startsWith("<")) {
+      throw new Error("API retornou XML ao invés de JSON. Verifique o ID do município.");
+    }
+
+    const dados = JSON.parse(rawText);
     const lista = Array.isArray(dados) ? dados : [];
 
     if (lista.length === 0) {
