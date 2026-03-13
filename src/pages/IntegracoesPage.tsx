@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAppContext } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RefreshCw, CheckCircle, Building2, Landmark, Search } from "lucide-react";
+import { RefreshCw, CheckCircle, Building2, Landmark, Search, FileCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -400,6 +400,16 @@ export default function IntegracoesPage() {
         />
 
         <SincronizacaoOrgaosCard />
+
+        <SincronizacaoCard
+          titulo="Balancetes TCM-GO"
+          descricao="Verifica automaticamente se os balancetes eletrônicos de todos os órgãos dos clientes ativos foram enviados ao TCM-GO. A verificação cobre todos os meses do ano vigente."
+          fonte="ws.tcm.go.gov.br"
+          icone={FileCheck}
+          functionName="verificar-balancetes-tcmgo"
+          tipoLog="balancetes"
+          labelRegistros="verificações"
+        />
       </div>
     </div>
   );
