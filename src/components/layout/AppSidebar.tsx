@@ -40,6 +40,11 @@ const navEntries: NavEntry[] = [
   { label: "Documentos", icon: FileText, path: "/documentos" },
   { label: "Notificações", icon: Bell, path: "/notificacoes" },
   {
+    label: "Integrações",
+    icon: Globe,
+    path: "/integracoes",
+  } as NavItem,
+  {
     label: "Configurações",
     icon: Settings,
     children: [
