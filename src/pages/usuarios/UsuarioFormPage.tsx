@@ -153,6 +153,8 @@ const UsuarioFormPage = () => {
     return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
   };
 
+  const isMultiMunicipio = PERFIS_MULTI_MUNICIPIO.includes(perfil);
+
   const validate = () => {
     const errs: Record<string, string> = {};
     if (!nome.trim()) errs.nome = "Nome é obrigatório";
@@ -166,7 +168,11 @@ const UsuarioFormPage = () => {
     if (senha && !/[0-9]/.test(senha)) errs.senha = "Deve ter ao menos 1 número";
     if (senha && senha !== senhaConfirm) errs.senhaConfirm = "Senhas não conferem";
     if (!perfil) errs.perfil = "Perfil é obrigatório";
-    if (!municipioId) errs.municipioId = "Município é obrigatório";
+    if (isMultiMunicipio) {
+      if (municipioIds.length === 0) errs.municipioId = "Selecione ao menos um município";
+    } else {
+      if (!municipioId) errs.municipioId = "Município é obrigatório";
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
