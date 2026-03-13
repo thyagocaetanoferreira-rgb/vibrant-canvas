@@ -1,5 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { MapPin, Check, Eye, EyeOff, Loader2 } from "lucide-react";
+import { MapPin, Check, Eye, EyeOff, Loader2, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Municipio {
@@ -43,6 +45,13 @@ const ClienteFormPage = () => {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // TCM-GO municipality
+  const [municipioTcmgoId, setMunicipioTcmgoId] = useState<number | null>(null);
+  const [tcmgoMunicipios, setTcmgoMunicipios] = useState<{ id: number; descricao: string }[]>([]);
+  const [tcmgoBusca, setTcmgoBusca] = useState("");
+  const [tcmgoPopoverAberto, setTcmgoPopoverAberto] = useState(false);
+  const [tcmgoSelecionadoNome, setTcmgoSelecionadoNome] = useState("");
+
   // Municipio search
   const [munSearch, setMunSearch] = useState("");
   const [munResults, setMunResults] = useState<Municipio[]>([]);
@@ -57,6 +66,32 @@ const ClienteFormPage = () => {
     supabase.from("clientes").select("municipio_id").then(({ data }) => {
       setExistingClienteMunIds(new Set((data || []).map((c) => c.municipio_id)));
     });
+
+    // Load TCM-GO municipalities
+    async function loadTcmgoMunicipios() {
+      const todos: { id: number; descricao: string }[] = [];
+      const PAGE_SIZE = 1000;
+      let page = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const from = page * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+        const { data } = await supabase
+          .from("tcmgo_municipios")
+          .select("id, descricao")
+          .order("descricao")
+          .range(from, to);
+        if (data && data.length > 0) {
+          todos.push(...data);
+          if (data.length < PAGE_SIZE) hasMore = false;
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+      setTcmgoMunicipios(todos);
+    }
+    loadTcmgoMunicipios();
 
     if (isEdit) {
       loadCliente();
@@ -82,6 +117,7 @@ const ClienteFormPage = () => {
     setStatus(data.status ?? true);
     setLinkSistema(data.link_sistema || "");
     setLoginSistema(data.login_sistema || "");
+    setMunicipioTcmgoId(data.municipio_tcmgo_id ?? null);
 
     // Load municipio details
     const { data: mun } = await supabase
@@ -91,6 +127,17 @@ const ClienteFormPage = () => {
       .single();
 
     if (mun) setSelectedMunicipio(mun);
+
+    // Load TCM-GO municipality name if linked
+    if (data.municipio_tcmgo_id) {
+      const { data: tcmMun } = await supabase
+        .from("tcmgo_municipios")
+        .select("descricao")
+        .eq("id", data.municipio_tcmgo_id)
+        .single();
+      if (tcmMun) setTcmgoSelecionadoNome(tcmMun.descricao);
+    }
+
     setLoading(false);
   };
 
@@ -144,6 +191,7 @@ const ClienteFormPage = () => {
             status,
             link_sistema: linkSistema || null,
             login_sistema: loginSistema || null,
+            municipio_tcmgo_id: municipioTcmgoId,
           })
           .eq("id", id!);
 
@@ -166,6 +214,7 @@ const ClienteFormPage = () => {
             status,
             link_sistema: linkSistema || null,
             login_sistema: loginSistema || null,
+            municipio_tcmgo_id: municipioTcmgoId,
           })
           .select("id")
           .single();
@@ -289,6 +338,83 @@ const ClienteFormPage = () => {
             {errors.municipio && (
               <p className="text-sm text-destructive">{errors.municipio}</p>
             )}
+          </div>
+
+          {/* Município TCM-GO */}
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">
+              Município TCM-GO
+              <span className="text-muted-foreground text-xs font-normal ml-1">(para integração com o Tribunal de Contas)</span>
+            </Label>
+            <Popover open={tcmgoPopoverAberto} onOpenChange={setTcmgoPopoverAberto}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-between font-normal"
+                  type="button"
+                >
+                  {municipioTcmgoId
+                    ? tcmgoSelecionadoNome || `ID: ${municipioTcmgoId}`
+                    : "Selecione o município TCM-GO (opcional)"}
+                  <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                <div className="p-2 border-b border-border">
+                  <Input
+                    placeholder="Buscar município TCM-GO..."
+                    value={tcmgoBusca}
+                    onChange={(e) => setTcmgoBusca(e.target.value)}
+                    className="h-8"
+                    autoFocus
+                  />
+                </div>
+                <ScrollArea className="h-[200px]">
+                  {/* Option to clear */}
+                  {municipioTcmgoId && (
+                    <button
+                      onClick={() => {
+                        setMunicipioTcmgoId(null);
+                        setTcmgoSelecionadoNome("");
+                        setTcmgoPopoverAberto(false);
+                        setTcmgoBusca("");
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-muted transition-colors"
+                    >
+                      ✕ Remover vínculo
+                    </button>
+                  )}
+                  {(tcmgoBusca.trim()
+                    ? tcmgoMunicipios.filter((m) =>
+                        m.descricao.toLowerCase().includes(tcmgoBusca.toLowerCase())
+                      )
+                    : tcmgoMunicipios
+                  )
+                    .slice(0, 100)
+                    .map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => {
+                          setMunicipioTcmgoId(m.id);
+                          setTcmgoSelecionadoNome(m.descricao);
+                          setTcmgoPopoverAberto(false);
+                          setTcmgoBusca("");
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors ${
+                          municipioTcmgoId === m.id
+                            ? "bg-primary/10 text-primary font-medium"
+                            : ""
+                        }`}
+                      >
+                        {m.descricao}
+                      </button>
+                    ))}
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
+            <p className="text-xs text-muted-foreground">
+              Vincule ao município do TCM-GO para habilitar a verificação de balancetes
+            </p>
           </div>
 
           <Separator />
