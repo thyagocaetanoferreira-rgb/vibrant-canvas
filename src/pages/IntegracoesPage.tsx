@@ -39,6 +39,7 @@ function SincronizacaoCard({
   functionName,
   tipoLog,
   labelRegistros,
+  aviso,
 }: {
   titulo: string;
   descricao: string;
@@ -47,6 +48,7 @@ function SincronizacaoCard({
   functionName: string;
   tipoLog: string;
   labelRegistros: string;
+  aviso?: string;
 }) {
   const { usuario } = useAppContext();
   const [carregando, setCarregando] = useState(false);
