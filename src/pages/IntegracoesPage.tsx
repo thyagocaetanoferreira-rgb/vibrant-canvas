@@ -411,16 +411,7 @@ export default function IntegracoesPage() {
 
         <SincronizacaoOrgaosCard />
 
-        <SincronizacaoCard
-          titulo="Balancetes TCM-GO"
-          descricao="Verifica automaticamente se os balancetes eletrônicos de todos os órgãos dos clientes ativos foram enviados ao TCM-GO. A verificação cobre todos os meses do ano vigente."
-          fonte="ws.tcm.go.gov.br"
-          icone={FileCheck}
-          functionName="verificar-balancetes-tcmgo"
-          tipoLog="balancetes"
-          labelRegistros="verificações"
-          aviso="Pré-requisito: os municípios e órgãos do TCM-GO devem ser importados antes, e os clientes devem estar vinculados ao município TCM-GO."
-        />
+        <SincronizacaoBalancetesCard />
 
         <SincronizacaoPpaLoaCard />
       </div>
