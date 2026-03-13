@@ -67,6 +67,32 @@ const ClienteFormPage = () => {
       setExistingClienteMunIds(new Set((data || []).map((c) => c.municipio_id)));
     });
 
+    // Load TCM-GO municipalities
+    async function loadTcmgoMunicipios() {
+      const todos: { id: number; descricao: string }[] = [];
+      const PAGE_SIZE = 1000;
+      let page = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const from = page * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+        const { data } = await supabase
+          .from("tcmgo_municipios")
+          .select("id, descricao")
+          .order("descricao")
+          .range(from, to);
+        if (data && data.length > 0) {
+          todos.push(...data);
+          if (data.length < PAGE_SIZE) hasMore = false;
+          page++;
+        } else {
+          hasMore = false;
+        }
+      }
+      setTcmgoMunicipios(todos);
+    }
+    loadTcmgoMunicipios();
+
     if (isEdit) {
       loadCliente();
     }
@@ -91,6 +117,7 @@ const ClienteFormPage = () => {
     setStatus(data.status ?? true);
     setLinkSistema(data.link_sistema || "");
     setLoginSistema(data.login_sistema || "");
+    setMunicipioTcmgoId(data.municipio_tcmgo_id ?? null);
 
     // Load municipio details
     const { data: mun } = await supabase
@@ -100,6 +127,17 @@ const ClienteFormPage = () => {
       .single();
 
     if (mun) setSelectedMunicipio(mun);
+
+    // Load TCM-GO municipality name if linked
+    if (data.municipio_tcmgo_id) {
+      const { data: tcmMun } = await supabase
+        .from("tcmgo_municipios")
+        .select("descricao")
+        .eq("id", data.municipio_tcmgo_id)
+        .single();
+      if (tcmMun) setTcmgoSelecionadoNome(tcmMun.descricao);
+    }
+
     setLoading(false);
   };
 
