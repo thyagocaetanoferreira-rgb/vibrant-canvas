@@ -214,6 +214,7 @@ const ClienteFormPage = () => {
             status,
             link_sistema: linkSistema || null,
             login_sistema: loginSistema || null,
+            municipio_tcmgo_id: municipioTcmgoId,
           })
           .select("id")
           .single();
