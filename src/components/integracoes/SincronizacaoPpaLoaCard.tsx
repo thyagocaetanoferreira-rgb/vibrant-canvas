@@ -207,7 +207,7 @@ export default function SincronizacaoPpaLoaCard() {
         </Button>
 
         <p className="text-xs text-muted-foreground text-center">
-          🤖 Verificação automática diária. Clique para verificar manualmente.
+          A verificação é manual. Clique no botão para buscar dados atualizados.
         </p>
       </CardContent>
     </Card>
