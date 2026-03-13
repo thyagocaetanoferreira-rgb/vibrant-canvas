@@ -423,7 +423,7 @@ const DiagnosticoFormPage = () => {
               </div>
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-card-foreground border-b border-border pb-1">Saúde (ASPS)</h4>
-                <MoneyInput label="Aplicação em Saúde" value={form.aplicacao_saude} onChange={(v) => set("aplicacao_saude", v)} />
+                <MoneyInput label="Aplicação em Saúde" value={form.aplicacao_saude} onChange={(v) => set("aplicacao_saude", v)} required />
               </div>
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold text-card-foreground border-b border-border pb-1">Pessoal (LRF)</h4>
