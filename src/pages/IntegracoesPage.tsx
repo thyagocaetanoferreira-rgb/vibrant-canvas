@@ -199,13 +199,13 @@ function SincronizacaoOrgaosCard() {
     async function carregarUltimoLog() {
       const { data } = await supabase
         .from("tcmgo_sync_log")
-        .select("status, total_registros, finalizado_em")
+        .select("status, total_registros, finalizado_em, detalhes")
         .eq("status", "sucesso")
         .eq("tipo", "orgaos")
         .order("finalizado_em", { ascending: false })
         .limit(1)
         .single();
-      if (data) setUltimoLog(data);
+      if (data) setUltimoLog(data as UltimoLog);
     }
     carregarUltimoLog();
   }, []);
