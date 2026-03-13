@@ -49,6 +49,9 @@ const App = () => (
               <Route path="/" element={<Dashboard />} />
               <Route path="/entregas" element={<EntregasPage />} />
               <Route path="/demandas" element={<DemandasPage />} />
+              <Route path="/diagnostico" element={<DiagnosticoListPage />} />
+              <Route path="/diagnostico/novo" element={<DiagnosticoFormPage />} />
+              <Route path="/diagnostico/:id/editar" element={<DiagnosticoFormPage />} />
               <Route path="/juridico" element={<JuridicoPage />} />
               <Route path="/riscos" element={<RiscosPage />} />
               <Route path="/agenda" element={<ModulePlaceholder title="Agenda" description="Calendário unificado de visitas, reuniões e diligências" icon={Calendar} />} />

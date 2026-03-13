@@ -29,7 +29,14 @@ const navEntries: NavEntry[] = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/" },
   { label: "Agenda", icon: Calendar, path: "/agenda" },
   { label: "Entregas", icon: Send, path: "/entregas" },
-  { label: "Demandas", icon: ListTodo, path: "/demandas" },
+  {
+    label: "Demandas",
+    icon: ListTodo,
+    children: [
+      { label: "Tarefas", icon: ListTodo, path: "/demandas" },
+      { label: "Diagnóstico", icon: FileText, path: "/diagnostico" },
+    ],
+  },
   { label: "Relatórios", icon: BarChart3, path: "/relatorios" },
   { label: "Jurídico", icon: Scale, path: "/juridico" },
   { label: "Gestão de Riscos", icon: ShieldAlert, path: "/riscos" },
