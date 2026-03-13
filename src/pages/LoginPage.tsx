@@ -9,12 +9,19 @@ import { Eye, EyeOff, User, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 const LoginPage = () => {
-  const navigate = useNavigate();
+  const { usuario, authLoading } = useAppContext();
   const [identifier, setIdentifier] = useState("");
   const [senha, setSenha] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [manterConectado, setManterConectado] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && usuario) {
+      navigate("/", { replace: true });
+    }
+  }, [usuario, authLoading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
