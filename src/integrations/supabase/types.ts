@@ -65,6 +65,7 @@ export type Database = {
           link_sistema: string | null
           login_sistema: string | null
           municipio_id: number
+          municipio_tcmgo_id: number | null
           senha_sistema: string | null
           status: boolean | null
           tipos_servico: Database["public"]["Enums"]["tipo_servico"][]
@@ -77,6 +78,7 @@ export type Database = {
           link_sistema?: string | null
           login_sistema?: string | null
           municipio_id: number
+          municipio_tcmgo_id?: number | null
           senha_sistema?: string | null
           status?: boolean | null
           tipos_servico?: Database["public"]["Enums"]["tipo_servico"][]
@@ -89,6 +91,7 @@ export type Database = {
           link_sistema?: string | null
           login_sistema?: string | null
           municipio_id?: number
+          municipio_tcmgo_id?: number | null
           senha_sistema?: string | null
           status?: boolean | null
           tipos_servico?: Database["public"]["Enums"]["tipo_servico"][]
@@ -106,6 +109,13 @@ export type Database = {
             columns: ["municipio_id"]
             isOneToOne: true
             referencedRelation: "municipios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clientes_municipio_tcmgo_id_fkey"
+            columns: ["municipio_tcmgo_id"]
+            isOneToOne: false
+            referencedRelation: "tcmgo_municipios"
             referencedColumns: ["id"]
           },
         ]
