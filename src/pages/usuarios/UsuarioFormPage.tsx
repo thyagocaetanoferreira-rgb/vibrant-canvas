@@ -97,7 +97,7 @@ const UsuarioFormPage = () => {
       const { data: perms } = await supabase
         .from("permissoes_perfil")
         .select("*")
-        .eq("perfil", perfil);
+        .eq("perfil", perfil as "Administrador" | "Auxiliar" | "Comercial" | "Coordenador" | "Juridico" | "Suporte");
       if (modulos && perms) {
         setPermissoesPerfil(
           modulos.map((m: any) => {
