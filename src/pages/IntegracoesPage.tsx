@@ -420,6 +420,8 @@ export default function IntegracoesPage() {
           labelRegistros="verificações"
           aviso="Pré-requisito: os municípios e órgãos do TCM-GO devem ser importados antes, e os clientes devem estar vinculados ao município TCM-GO."
         />
+
+        <SincronizacaoPpaLoaCard />
       </div>
     </div>
   );
