@@ -4,6 +4,7 @@ import { useAppContext } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RefreshCw, CheckCircle, Building2, Landmark, Search, FileCheck } from "lucide-react";
+import SincronizacaoPpaLoaCard from "@/components/integracoes/SincronizacaoPpaLoaCard";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
