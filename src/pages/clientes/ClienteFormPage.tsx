@@ -51,7 +51,6 @@ const ClienteFormPage = () => {
   const [tcmgoBusca, setTcmgoBusca] = useState("");
   const [tcmgoPopoverAberto, setTcmgoPopoverAberto] = useState(false);
   const [tcmgoSelecionadoNome, setTcmgoSelecionadoNome] = useState("");
-  const [loading, setLoading] = useState(false);
 
   // Municipio search
   const [munSearch, setMunSearch] = useState("");
