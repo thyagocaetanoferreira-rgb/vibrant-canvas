@@ -16,7 +16,7 @@ const caucItems = [
 
 const generateCaucData = () => {
   const data: Record<string, Record<string, boolean>> = {};
-  municipios.slice(0, 10).forEach((m) => {
+  municipiosDemo.forEach((m) => {
     data[m] = {};
     caucItems.forEach((item) => {
       data[m][item] = Math.random() > 0.12;
