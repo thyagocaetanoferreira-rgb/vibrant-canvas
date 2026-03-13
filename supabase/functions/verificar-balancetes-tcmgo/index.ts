@@ -28,9 +28,7 @@ Deno.serve(async (req) => {
       usuario_id = body.usuario_id ?? null;
       ano_referencia = body.ano_referencia ?? new Date().getFullYear();
       mes_referencia_alvo = body.mes_referencia ?? null;
-    } catch (_) {
-      // GET/cron call — use defaults
-    }
+    } catch (_) {}
   }
 
   // Create sync log
@@ -41,7 +39,6 @@ Deno.serve(async (req) => {
     .single();
   const logId = logData?.id;
 
-  // Months to check: 1 to current month (or specific month if provided)
   const mesAtual = new Date().getMonth() + 1;
   const meses = mes_referencia_alvo
     ? [mes_referencia_alvo]
@@ -53,7 +50,7 @@ Deno.serve(async (req) => {
   const erros: string[] = [];
 
   try {
-    // 1. Fetch all active clients that have municipio_tcmgo_id set
+    // 1. Fetch active clients with TCM-GO municipality linked
     const { data: clientes, error: errClientes } = await supabase
       .from("clientes")
       .select("id, municipio_tcmgo_id")
@@ -64,11 +61,11 @@ Deno.serve(async (req) => {
       throw new Error("Nenhum cliente ativo com município TCM-GO vinculado.");
     }
 
-    // 2. For each client, get its TCM-GO municipality info and organs
+    console.log(`Clientes ativos com TCM-GO: ${clientes.length}`);
+
     for (const cliente of clientes) {
       const municipioTcmgoId = cliente.municipio_tcmgo_id;
 
-      // Get municipality info
       const { data: munTcm } = await supabase
         .from("tcmgo_municipios")
         .select("id, descricao, cnpj")
@@ -80,82 +77,110 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Get active organs for this municipality
-      const { data: orgaos } = await supabase
+      const { data: orgaos, error: orgaosErr } = await supabase
         .from("tcmgo_orgaos")
         .select("codigo_orgao, descricao_orgao")
         .eq("municipio_tcmgo_id", munTcm.id)
         .eq("ativo", true);
+
+      console.log(`${munTcm.descricao} (ID ${munTcm.id}): ${orgaos?.length ?? 0} órgãos, erro: ${orgaosErr?.message ?? "nenhum"}`);
 
       if (!orgaos?.length) {
         erros.push(`${munTcm.descricao}: nenhum órgão ativo cadastrado`);
         continue;
       }
 
-      // 3. For each organ × each month
+      // Build all tasks for this client
+      interface VerifyTask {
+        orgao: { codigo_orgao: string; descricao_orgao: string };
+        mes: number;
+      }
+      const tasks: VerifyTask[] = [];
       for (const orgao of orgaos) {
         for (const mes of meses) {
-          try {
+          tasks.push({ orgao, mes });
+        }
+      }
+
+      console.log(`${munTcm.descricao}: ${tasks.length} verificações a fazer`);
+
+      // Process in parallel batches of 5 to avoid timeout
+      const BATCH = 5;
+      for (let i = 0; i < tasks.length; i += BATCH) {
+        const batch = tasks.slice(i, i + BATCH);
+        const results = await Promise.allSettled(
+          batch.map(async ({ orgao, mes }) => {
             const url = `${BASE_URL}/${munTcm.id}/${orgao.codigo_orgao}/${mes}/${ano_referencia}?type=json`;
 
-            const response = await fetch(url, {
-              headers: { Accept: "application/json" },
-              signal: AbortSignal.timeout(10000),
-            });
+            try {
+              const response = await fetch(url, {
+                headers: { Accept: "application/json" },
+                signal: AbortSignal.timeout(8000),
+              });
 
-            let enviado = false;
-            let numero_recibo: string | null = null;
-            let data_envio: string | null = null;
+              let enviado = false;
+              let numero_recibo: string | null = null;
+              let data_envio: string | null = null;
 
-            if (response.ok) {
-              const rawText = await response.text();
-
-              // Skip XML responses
-              if (!rawText.startsWith("<?xml") && !rawText.startsWith("<")) {
-                try {
-                  const dados = JSON.parse(rawText);
-                  const recibo = dados?.recibo ?? dados;
-                  enviado = !!(recibo?.numeroRecibo || recibo?.numero_recibo);
-                  numero_recibo = recibo?.numeroRecibo ?? recibo?.numero_recibo ?? null;
-                  data_envio = recibo?.dataEnvio ?? recibo?.data_envio ?? null;
-                } catch (_) {
-                  // Could not parse JSON, treat as not sent
+              if (response.ok) {
+                const rawText = await response.text();
+                if (!rawText.startsWith("<?xml") && !rawText.startsWith("<")) {
+                  try {
+                    const dados = JSON.parse(rawText);
+                    const recibo = dados?.recibo ?? dados;
+                    enviado = !!(recibo?.numeroRecibo || recibo?.numero_recibo);
+                    numero_recibo = recibo?.numeroRecibo ?? recibo?.numero_recibo ?? null;
+                    data_envio = recibo?.dataEnvio ?? recibo?.data_envio ?? null;
+                  } catch (_) {}
                 }
+              } else {
+                // Consume body to prevent leak
+                await response.text();
               }
+
+              return { orgao, mes, enviado, numero_recibo, data_envio };
+            } catch (err: any) {
+              erros.push(`${munTcm.descricao}/${orgao.codigo_orgao}/mês ${mes}: ${err.message}`);
+              return null;
             }
+          })
+        );
 
-            // Upsert result
-            const { error: upsertErr } = await supabase
-              .from("tcmgo_balancetes_status")
-              .upsert(
-                {
-                  cliente_id: cliente.id,
-                  municipio_tcmgo_id: munTcm.id,
-                  codigo_orgao: orgao.codigo_orgao,
-                  descricao_orgao: orgao.descricao_orgao,
-                  mes_referencia: mes,
-                  ano_referencia: ano_referencia,
-                  enviado,
-                  numero_recibo,
-                  data_envio: data_envio ? new Date(data_envio).toISOString() : null,
-                  cnpj_municipio: munTcm.cnpj,
-                  nome_municipio: munTcm.descricao,
-                  verificado_em: new Date().toISOString(),
-                },
-                { onConflict: "cliente_id,codigo_orgao,mes_referencia,ano_referencia" }
-              );
-
-            if (upsertErr) {
-              erros.push(`${munTcm.descricao} / ${orgao.codigo_orgao} / mês ${mes}: ${upsertErr.message}`);
-            }
-
+        // Collect successful results for batch upsert
+        const upsertRows: any[] = [];
+        for (const result of results) {
+          if (result.status === "fulfilled" && result.value) {
+            const { orgao, mes, enviado, numero_recibo, data_envio } = result.value;
             totalVerificados++;
             if (enviado) totalEnviados++;
             else totalPendentes++;
-          } catch (errItem: any) {
-            erros.push(
-              `${munTcm.descricao} / ${orgao.codigo_orgao} / mês ${mes}: ${errItem.message}`
-            );
+
+            upsertRows.push({
+              cliente_id: cliente.id,
+              municipio_tcmgo_id: munTcm.id,
+              codigo_orgao: orgao.codigo_orgao,
+              descricao_orgao: orgao.descricao_orgao,
+              mes_referencia: mes,
+              ano_referencia,
+              enviado,
+              numero_recibo,
+              data_envio: data_envio ? new Date(data_envio).toISOString() : null,
+              cnpj_municipio: munTcm.cnpj,
+              nome_municipio: munTcm.descricao,
+              verificado_em: new Date().toISOString(),
+            });
+          }
+        }
+
+        // Batch upsert
+        if (upsertRows.length > 0) {
+          const { error: upsertErr } = await supabase
+            .from("tcmgo_balancetes_status")
+            .upsert(upsertRows, { onConflict: "cliente_id,codigo_orgao,mes_referencia,ano_referencia" });
+
+          if (upsertErr) {
+            console.error(`Upsert error: ${upsertErr.message}`);
+            erros.push(`Upsert: ${upsertErr.message}`);
           }
         }
       }
@@ -177,6 +202,8 @@ Deno.serve(async (req) => {
         .eq("id", logId);
     }
 
+    console.log(`Concluído: ${totalVerificados} verificações, ${totalEnviados} enviados, ${totalPendentes} pendentes`);
+
     return new Response(
       JSON.stringify({
         sucesso: true,
@@ -189,6 +216,7 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (erro: any) {
+    console.error(`Erro fatal: ${erro.message}`);
     if (logId) {
       await supabase
         .from("tcmgo_sync_log")
