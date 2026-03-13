@@ -328,21 +328,19 @@ const DiagnosticoFormPage = () => {
         {/* ABA 2 — DESPESAS */}
         <TabsContent value="despesas" className="bg-card rounded-xl border border-border p-6 space-y-4 mt-4">
           <h3 className="font-heading font-semibold text-card-foreground">Despesas</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <MoneyInput label="Despesa Fixada" value={form.despesa_fixada} onChange={(v) => set("despesa_fixada", v)} required />
-            <MoneyInput label="Despesa Paga" value={form.despesa_paga} onChange={(v) => set("despesa_paga", v)} required />
-          </div>
+          <MoneyInput label="Despesa Fixada" value={form.despesa_fixada} onChange={(v) => set("despesa_fixada", v)} required />
           <div className="space-y-2">
             <Label className="text-sm font-medium text-card-foreground">Despesa Empenhada</Label>
             <div className="grid grid-cols-2 gap-4">
-              <MoneyInput label="Fonte 1" value={form.despesa_empenhada_f1} onChange={(v) => set("despesa_empenhada_f1", v)} />
-              <MoneyInput label="Fonte 2" value={form.despesa_empenhada_f2} onChange={(v) => set("despesa_empenhada_f2", v)} />
+              <MoneyInput label="Fonte 1" value={form.despesa_empenhada_f1} onChange={(v) => set("despesa_empenhada_f1", v)} required />
+              <MoneyInput label="Fonte 2" value={form.despesa_empenhada_f2} onChange={(v) => set("despesa_empenhada_f2", v)} required />
             </div>
             <div className="bg-muted/30 rounded-lg px-4 py-2 text-sm text-muted-foreground">
               Total Empenhado (calculado): <span className="font-medium text-card-foreground">{formatBRL(totalEmpenhado)}</span>
             </div>
           </div>
           <MoneyInput label="Despesa Liquidada" value={form.despesa_liquidada} onChange={(v) => set("despesa_liquidada", v)} required />
+          <MoneyInput label="Despesa Paga" value={form.despesa_paga} onChange={(v) => set("despesa_paga", v)} required />
         </TabsContent>
 
         {/* ABA 3 — CAIXA */}
