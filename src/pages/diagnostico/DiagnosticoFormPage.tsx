@@ -551,7 +551,7 @@ const DiagnosticoFormPage = () => {
           {/* Saúde */}
           <div className="space-y-3 rounded-lg border border-border p-4">
             <h4 className="text-sm font-semibold text-card-foreground">🏥 Saúde (ASPS)</h4>
-            <p className="text-xs text-muted-foreground">Utiliza a mesma Receita de Impostos informada acima (Educação).</p>
+            <MoneyInput label="Receita de Impostos (Saúde) *" value={form.receita_impostos_saude} onChange={(v) => set("receita_impostos_saude", v)} required />
             <MoneyInput label="Aplicação em Saúde *" value={form.aplicacao_saude} onChange={(v) => set("aplicacao_saude", v)} required />
             <IndiceResumo label="Índice de Saúde" value={indiceSaude} statusFn={statusSaude} />
           </div>
