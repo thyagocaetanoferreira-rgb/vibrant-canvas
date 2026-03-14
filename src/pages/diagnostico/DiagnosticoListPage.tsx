@@ -9,6 +9,15 @@ import { cn } from "@/lib/utils";
 
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
+const statusIcon: Record<string, React.ReactNode> = {
+  finalizado: <CheckCircle2 className="w-4 h-4 text-success" />,
+  rascunho: <Clock className="w-4 h-4 text-warning" />,
+};
+const statusLabel: Record<string, string> = {
+  finalizado: "Finalizado",
+  rascunho: "Rascunho",
+};
+
 const indiceBadge = (s: ReturnType<typeof statusEducacao>, pct: string) => {
   const colors: Record<string, string> = {
     ok: "text-success",
