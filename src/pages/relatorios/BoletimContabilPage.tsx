@@ -380,11 +380,11 @@ const BoletimContabilPage = () => {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-muted/50 rounded-xl p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Receita Realizada</p>
+                  <p className="text-sm text-muted-foreground">Receita Realizada</p>
                   <p className="text-xl font-heading font-bold text-foreground mt-1">{formatBRL(calc.receitaRealizada)}</p>
                 </div>
                 <div className="bg-muted/50 rounded-xl p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Despesa Empenhada (F1)</p>
+                  <p className="text-sm text-muted-foreground">Despesa Empenhada (F1)</p>
                   <p className="text-xl font-heading font-bold text-foreground mt-1">{formatBRL(calc.despesaEmpenhada)}</p>
                 </div>
                 <div
