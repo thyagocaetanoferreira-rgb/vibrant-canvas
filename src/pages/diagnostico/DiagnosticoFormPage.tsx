@@ -706,7 +706,8 @@ const DiagnosticoFormPage = () => {
                 <ResumoField label="Consignações" value={savedData.consignacoes_tesouraria} />
                 <ResumoField label="Resto não processado" value={savedData.resto_nao_processado} />
                 <ResumoField label="Resto processado" value={savedData.resto_processado} />
-                <ResumoField label="Res. Fin. Empenhado" value={calcResFinanceiroEmpenhado(savedData.caixa || 0, savedData.despesa_nao_processada || 0, savedData.consignacoes_tesouraria || 0)} />
+                <ResumoField label="Res. Fin. Empenhado" value={calcResFinanceiroEmpenhado(savedData.caixa || 0, savedData.consignacoes_tesouraria || 0, savedData.despesa_nao_processada || 0, savedData.despesa_processada || 0, savedData.resto_nao_processado || 0, savedData.resto_processado || 0)} />
+                <ResumoField label="Res. Fin. Liquidado" value={calcResFinanceiroLiquidado(savedData.caixa || 0, savedData.consignacoes_tesouraria || 0, savedData.despesa_processada || 0, savedData.resto_processado || 0)} />
               </div>
               <div>
                 <h4 className="font-semibold text-card-foreground mb-1">Índices LRF</h4>
