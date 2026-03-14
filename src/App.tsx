@@ -72,6 +72,7 @@ const App = () => (
               <Route path="/clientes" element={<ClientesListPage />} />
               <Route path="/clientes/novo" element={<ClienteFormPage />} />
               <Route path="/clientes/:id/editar" element={<ClienteFormPage />} />
+              <Route path="/importar-lancamentos" element={<ImportarLancamentosPage />} />
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />
