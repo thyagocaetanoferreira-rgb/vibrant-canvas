@@ -633,7 +633,7 @@ const DiagnosticoFormPage = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <IndiceResumo label="Educação" value={numVal(savedData.receita_impostos) ? numVal(savedData.aplicacao_educacao) / numVal(savedData.receita_impostos) : null} statusFn={statusEducacao} />
                   <IndiceResumo label="FUNDEB" value={numVal(savedData.receita_fundeb) ? numVal(savedData.aplicacao_fundeb_70) / numVal(savedData.receita_fundeb) : null} statusFn={statusFundeb} />
-                  <IndiceResumo label="Saúde" value={numVal(savedData.receita_impostos) ? numVal(savedData.aplicacao_saude) / numVal(savedData.receita_impostos) : null} statusFn={statusSaude} />
+                  <IndiceResumo label="Saúde" value={numVal(savedData.receita_impostos_saude) ? numVal(savedData.aplicacao_saude) / numVal(savedData.receita_impostos_saude) : null} statusFn={statusSaude} />
                   <IndiceResumo label="Pessoal" value={numVal(savedData.receita_corrente_liquida) ? numVal(savedData.gasto_pessoal) / numVal(savedData.receita_corrente_liquida) : null} statusFn={statusPessoal} />
                 </div>
               </div>
