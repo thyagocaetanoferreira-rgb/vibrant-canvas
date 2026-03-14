@@ -136,6 +136,14 @@ const DiagnosticoListPage = () => {
                     onClick={() => hasData && navigate(`/diagnostico/${l.id}/editar`)}
                   >
                     <td className="py-3 px-3 font-medium">{MESES[mes - 1]}</td>
+                    <td className="py-3 px-3">
+                      {hasData ? (
+                        <div className="flex items-center gap-1.5">
+                          {statusIcon[l.status]}
+                          <span className="text-xs">{statusLabel[l.status]}</span>
+                        </div>
+                      ) : "—"}
+                    </td>
                     <td className="py-3 px-3 text-right">
                       {resOrcamento !== null ? (
                         <span className={cn("font-medium", resOrcamento >= 0 ? "text-success" : "text-destructive")}>
