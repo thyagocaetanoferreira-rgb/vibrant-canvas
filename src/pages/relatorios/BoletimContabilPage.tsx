@@ -393,7 +393,7 @@ const BoletimContabilPage = () => {
                     calc.resultadoOrcamentario >= 0 ? "bg-success/10" : "bg-destructive/10"
                   )}
                 >
-                  <p className="text-xs text-muted-foreground">Resultado Orçamentário</p>
+                  <p className="text-sm text-muted-foreground">Resultado Orçamentário</p>
                   <div className="flex items-center justify-center gap-2 mt-1">
                     {calc.resultadoOrcamentario >= 0 ? (
                       <TrendingUp className="w-5 h-5 text-success" />
