@@ -1,0 +1,1 @@
+ALTER TABLE public.lancamentos_mensais ADD COLUMN receita_impostos numeric DEFAULT NULL;

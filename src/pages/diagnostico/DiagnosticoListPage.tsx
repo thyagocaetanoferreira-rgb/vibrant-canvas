@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, FileText, CheckCircle2, Clock } from "lucide-react";
-import { formatBRL, calcIndiceEducacao, calcIndiceFundeb, calcIndiceSaude, calcIndicePessoal, statusEducacao, statusFundeb, statusSaude, statusPessoal } from "@/lib/calculos-lrf";
+import { formatBRL, statusEducacao, statusFundeb, statusSaude, statusPessoal } from "@/lib/calculos-lrf";
 import { cn } from "@/lib/utils";
 
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
@@ -87,10 +87,10 @@ const DiagnosticoListPage = () => {
           <tbody>
             {Array.from({ length: 12 }, (_, i) => i + 1).map((mes) => {
               const l = lancByMes[mes];
-              const edIdx = l ? calcIndiceEducacao(l.aplicacao_educacao, l.receita_realizada) : null;
-              const fbIdx = l ? calcIndiceFundeb(l.aplicacao_fundeb_70, l.receita_fundeb) : null;
-              const saIdx = l ? calcIndiceSaude(l.aplicacao_saude, l.receita_corrente_liquida) : null;
-              const peIdx = l ? calcIndicePessoal(l.gasto_pessoal, l.receita_corrente_liquida) : null;
+              const edIdx = l && l.receita_impostos ? l.aplicacao_educacao / l.receita_impostos : null;
+              const fbIdx = l && l.receita_fundeb ? l.aplicacao_fundeb_70 / l.receita_fundeb : null;
+              const saIdx = l && l.receita_corrente_liquida ? l.aplicacao_saude / l.receita_corrente_liquida : null;
+              const peIdx = l && l.receita_corrente_liquida ? l.gasto_pessoal / l.receita_corrente_liquida : null;
 
               return (
                 <tr

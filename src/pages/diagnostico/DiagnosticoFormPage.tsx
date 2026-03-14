@@ -184,6 +184,35 @@ const DiagnosticoFormPage = () => {
   const totalEmpenhado = useMemo(() => calcTotalEmpenhado(numVal(form.despesa_empenhada_f1), numVal(form.despesa_empenhada_f2)), [form.despesa_empenhada_f1, form.despesa_empenhada_f2]);
   const resFinEmpenhado = useMemo(() => calcResFinanceiroEmpenhado(numVal(form.caixa), numVal(form.despesa_nao_processada), numVal(form.consignacoes_tesouraria)), [form.caixa, form.despesa_nao_processada, form.consignacoes_tesouraria]);
 
+  // Auto-calculated LRF indices
+  const indiceEducacao = useMemo(() => {
+    const receita = numVal(form.receita_impostos);
+    const aplicacao = numVal(form.aplicacao_educacao);
+    if (!receita) return null;
+    return aplicacao / receita;
+  }, [form.receita_impostos, form.aplicacao_educacao]);
+
+  const indiceFundeb = useMemo(() => {
+    const receita = numVal(form.receita_fundeb);
+    const aplicacao = numVal(form.aplicacao_fundeb_70);
+    if (!receita) return null;
+    return aplicacao / receita;
+  }, [form.receita_fundeb, form.aplicacao_fundeb_70]);
+
+  const indiceSaude = useMemo(() => {
+    const rcl = numVal(form.receita_corrente_liquida);
+    const aplicacao = numVal(form.aplicacao_saude);
+    if (!rcl) return null;
+    return aplicacao / rcl;
+  }, [form.receita_corrente_liquida, form.aplicacao_saude]);
+
+  const indicePessoal = useMemo(() => {
+    const rcl = numVal(form.receita_corrente_liquida);
+    const gasto = numVal(form.gasto_pessoal);
+    if (!rcl) return null;
+    return gasto / rcl;
+  }, [form.receita_corrente_liquida, form.gasto_pessoal]);
+
 
   const handleSave = async (status: "rascunho" | "finalizado") => {
     if (!municipio || !usuario) {
@@ -202,10 +231,13 @@ const DiagnosticoFormPage = () => {
         despesa_liquidada: "Despesa Liquidada",
         despesa_paga: "Despesa Paga",
         caixa: "Caixa",
-        aplicacao_educacao: "Índice Educação (%)",
-        aplicacao_fundeb_70: "Índice FUNDEB (%)",
-        aplicacao_saude: "Índice Saúde (%)",
-        gasto_pessoal: "Índice Pessoal (%)",
+        receita_impostos: "Receita de Impostos (Educação)",
+        aplicacao_educacao: "Aplicação em MDE (Educação)",
+        receita_fundeb: "Receita FUNDEB",
+        aplicacao_fundeb_70: "Aplicação FUNDEB 70%",
+        receita_corrente_liquida: "Receita Corrente Líquida",
+        aplicacao_saude: "Aplicação em Saúde",
+        gasto_pessoal: "Gasto com Pessoal",
       };
       const missing = Object.entries(requiredFields).filter(([f]) => {
         const v = form[f];
@@ -226,7 +258,7 @@ const DiagnosticoFormPage = () => {
       "supl_anulacao_perc","supl_anulacao_autorizada","supl_anulacao_utilizado",
       "supl_superavit_perc","superavit_exerc_anterior","supl_superavit_autorizada","supl_superavit_utilizado",
       "supl_excesso_perc","excesso_projetado","supl_excesso_utilizado",
-      "aplicacao_educacao","receita_fundeb","aplicacao_fundeb_70","aplicacao_saude",
+      "receita_impostos","aplicacao_educacao","receita_fundeb","aplicacao_fundeb_70","aplicacao_saude",
       "receita_corrente_liquida","gasto_pessoal",
     ];
 
@@ -494,25 +526,44 @@ const DiagnosticoFormPage = () => {
         {/* ABA 5 — ÍNDICES LRF */}
         <TabsContent value="indices" className="bg-card rounded-xl border border-border p-6 space-y-6 mt-4">
           <h3 className="font-heading font-semibold text-card-foreground">Índices LRF</h3>
-          <p className="text-xs text-muted-foreground">Informe os percentuais apurados para cada índice.</p>
+          <p className="text-xs text-muted-foreground">Informe os valores de receita e despesa/aplicação. O índice será calculado automaticamente.</p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <PctInput label="Educação (MDE) *" value={form.aplicacao_educacao} onChange={(v) => set("aplicacao_educacao", v)} />
-              <IndiceResumo label="Educação" value={numVal(form.aplicacao_educacao) / 100 || null} statusFn={statusEducacao} />
+          {/* Educação MDE */}
+          <div className="space-y-3 rounded-lg border border-border p-4">
+            <h4 className="text-sm font-semibold text-card-foreground">📚 Educação (MDE)</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <MoneyInput label="Receita de Impostos *" value={form.receita_impostos} onChange={(v) => set("receita_impostos", v)} required />
+              <MoneyInput label="Aplicação em MDE *" value={form.aplicacao_educacao} onChange={(v) => set("aplicacao_educacao", v)} required />
             </div>
-            <div className="space-y-2">
-              <PctInput label="FUNDEB (70%) *" value={form.aplicacao_fundeb_70} onChange={(v) => set("aplicacao_fundeb_70", v)} />
-              <IndiceResumo label="FUNDEB" value={numVal(form.aplicacao_fundeb_70) / 100 || null} statusFn={statusFundeb} />
+            <IndiceResumo label="Índice de Educação" value={indiceEducacao} statusFn={statusEducacao} />
+          </div>
+
+          {/* FUNDEB */}
+          <div className="space-y-3 rounded-lg border border-border p-4">
+            <h4 className="text-sm font-semibold text-card-foreground">🎓 FUNDEB (70%)</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <MoneyInput label="Receita FUNDEB *" value={form.receita_fundeb} onChange={(v) => set("receita_fundeb", v)} required />
+              <MoneyInput label="Aplicação FUNDEB 70% *" value={form.aplicacao_fundeb_70} onChange={(v) => set("aplicacao_fundeb_70", v)} required />
             </div>
-            <div className="space-y-2">
-              <PctInput label="Saúde (ASPS) *" value={form.aplicacao_saude} onChange={(v) => set("aplicacao_saude", v)} />
-              <IndiceResumo label="Saúde" value={numVal(form.aplicacao_saude) / 100 || null} statusFn={statusSaude} />
-            </div>
-            <div className="space-y-2">
-              <PctInput label="Pessoal (LRF) *" value={form.gasto_pessoal} onChange={(v) => set("gasto_pessoal", v)} />
-              <IndiceResumo label="Pessoal" value={numVal(form.gasto_pessoal) / 100 || null} statusFn={statusPessoal} />
-            </div>
+            <IndiceResumo label="Índice FUNDEB" value={indiceFundeb} statusFn={statusFundeb} />
+          </div>
+
+          {/* Saúde + Pessoal compartilham RCL */}
+          <div className="space-y-3 rounded-lg border border-border p-4">
+            <h4 className="text-sm font-semibold text-card-foreground">💰 Receita Corrente Líquida (RCL)</h4>
+            <MoneyInput label="Receita Corrente Líquida *" value={form.receita_corrente_liquida} onChange={(v) => set("receita_corrente_liquida", v)} required hint="Utilizada como base para os índices de Saúde e Pessoal." />
+          </div>
+
+          <div className="space-y-3 rounded-lg border border-border p-4">
+            <h4 className="text-sm font-semibold text-card-foreground">🏥 Saúde (ASPS)</h4>
+            <MoneyInput label="Aplicação em Saúde *" value={form.aplicacao_saude} onChange={(v) => set("aplicacao_saude", v)} required />
+            <IndiceResumo label="Índice de Saúde" value={indiceSaude} statusFn={statusSaude} />
+          </div>
+
+          <div className="space-y-3 rounded-lg border border-border p-4">
+            <h4 className="text-sm font-semibold text-card-foreground">👥 Pessoal (LRF)</h4>
+            <MoneyInput label="Gasto com Pessoal *" value={form.gasto_pessoal} onChange={(v) => set("gasto_pessoal", v)} required />
+            <IndiceResumo label="Índice de Pessoal" value={indicePessoal} statusFn={statusPessoal} />
           </div>
 
           <div className="text-xs text-muted-foreground space-y-0.5">
@@ -580,10 +631,10 @@ const DiagnosticoFormPage = () => {
               <div>
                 <h4 className="font-semibold text-card-foreground mb-1">Índices LRF</h4>
                 <div className="grid grid-cols-2 gap-2">
-                  <IndiceResumo label="Educação" value={numVal(savedData.aplicacao_educacao) / 100 || null} statusFn={statusEducacao} />
-                  <IndiceResumo label="FUNDEB" value={numVal(savedData.aplicacao_fundeb_70) / 100 || null} statusFn={statusFundeb} />
-                  <IndiceResumo label="Saúde" value={numVal(savedData.aplicacao_saude) / 100 || null} statusFn={statusSaude} />
-                  <IndiceResumo label="Pessoal" value={numVal(savedData.gasto_pessoal) / 100 || null} statusFn={statusPessoal} />
+                  <IndiceResumo label="Educação" value={numVal(savedData.receita_impostos) ? numVal(savedData.aplicacao_educacao) / numVal(savedData.receita_impostos) : null} statusFn={statusEducacao} />
+                  <IndiceResumo label="FUNDEB" value={numVal(savedData.receita_fundeb) ? numVal(savedData.aplicacao_fundeb_70) / numVal(savedData.receita_fundeb) : null} statusFn={statusFundeb} />
+                  <IndiceResumo label="Saúde" value={numVal(savedData.receita_corrente_liquida) ? numVal(savedData.aplicacao_saude) / numVal(savedData.receita_corrente_liquida) : null} statusFn={statusSaude} />
+                  <IndiceResumo label="Pessoal" value={numVal(savedData.receita_corrente_liquida) ? numVal(savedData.gasto_pessoal) / numVal(savedData.receita_corrente_liquida) : null} statusFn={statusPessoal} />
                 </div>
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t border-border">
