@@ -1,0 +1,1 @@
+ALTER TABLE public.lancamentos_mensais ADD CONSTRAINT lancamentos_mensais_unique_periodo UNIQUE (cliente_id, ano_referencia, mes_referencia);
