@@ -12,10 +12,22 @@ export function calcTotalEmpenhado(f1: number, f2: number): number {
 
 export function calcResFinanceiroEmpenhado(
   caixa: number,
+  consignacoes: number,
   despesaNaoProcessada: number,
-  consignacoes: number
+  despesaProcessada: number,
+  restoNaoProcessado: number,
+  restoProcessado: number
 ): number {
-  return (caixa ?? 0) - (despesaNaoProcessada ?? 0) - (consignacoes ?? 0)
+  return (caixa ?? 0) - ((consignacoes ?? 0) + (despesaNaoProcessada ?? 0) + (despesaProcessada ?? 0) + (restoNaoProcessado ?? 0) + (restoProcessado ?? 0))
+}
+
+export function calcResFinanceiroLiquidado(
+  caixa: number,
+  consignacoes: number,
+  despesaProcessada: number,
+  restoProcessado: number
+): number {
+  return (caixa ?? 0) - ((consignacoes ?? 0) + (despesaProcessada ?? 0) + (restoProcessado ?? 0))
 }
 
 export function calcIndiceEducacao(
