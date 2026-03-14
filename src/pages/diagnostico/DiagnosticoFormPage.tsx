@@ -316,12 +316,12 @@ const DiagnosticoFormPage = () => {
 
       {/* Tabs */}
       <Tabs defaultValue="receitas" className="w-full">
-        <TabsList className="w-full grid grid-cols-5">
-          <TabsTrigger value="receitas">1. Receitas</TabsTrigger>
-          <TabsTrigger value="despesas">2. Despesas</TabsTrigger>
-          <TabsTrigger value="caixa">3. Caixa</TabsTrigger>
-          <TabsTrigger value="suplementacao">4. Suplementação</TabsTrigger>
-          <TabsTrigger value="indices">5. Índices LRF</TabsTrigger>
+        <TabsList className="w-full grid grid-cols-5 h-auto p-1 bg-gradient-to-r from-[hsl(186,100%,41%)] via-[hsl(207,100%,46%)] to-[hsl(209,96%,33%)] rounded-xl shadow-md">
+          <TabsTrigger value="receitas" className="rounded-lg py-2.5 px-3 text-xs font-semibold text-white/80 transition-all data-[state=active]:bg-white data-[state=active]:text-[hsl(209,96%,33%)] data-[state=active]:shadow-lg data-[state=active]:font-bold hover:text-white hover:bg-white/15">1. Receitas</TabsTrigger>
+          <TabsTrigger value="despesas" className="rounded-lg py-2.5 px-3 text-xs font-semibold text-white/80 transition-all data-[state=active]:bg-white data-[state=active]:text-[hsl(209,96%,33%)] data-[state=active]:shadow-lg data-[state=active]:font-bold hover:text-white hover:bg-white/15">2. Despesas</TabsTrigger>
+          <TabsTrigger value="caixa" className="rounded-lg py-2.5 px-3 text-xs font-semibold text-white/80 transition-all data-[state=active]:bg-white data-[state=active]:text-[hsl(209,96%,33%)] data-[state=active]:shadow-lg data-[state=active]:font-bold hover:text-white hover:bg-white/15">3. Caixa</TabsTrigger>
+          <TabsTrigger value="suplementacao" className="rounded-lg py-2.5 px-3 text-xs font-semibold text-white/80 transition-all data-[state=active]:bg-white data-[state=active]:text-[hsl(209,96%,33%)] data-[state=active]:shadow-lg data-[state=active]:font-bold hover:text-white hover:bg-white/15">4. Suplementação</TabsTrigger>
+          <TabsTrigger value="indices" className="rounded-lg py-2.5 px-3 text-xs font-semibold text-white/80 transition-all data-[state=active]:bg-white data-[state=active]:text-[hsl(209,96%,33%)] data-[state=active]:shadow-lg data-[state=active]:font-bold hover:text-white hover:bg-white/15">5. Índices LRF</TabsTrigger>
         </TabsList>
 
         {/* ABA 1 — RECEITAS */}
