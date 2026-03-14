@@ -200,7 +200,7 @@ const DiagnosticoFormPage = () => {
   }, [form.receita_fundeb, form.aplicacao_fundeb_70]);
 
   const indiceSaude = useMemo(() => {
-    const receita = numVal(form.receita_impostos);
+    const receita = numVal(form.receita_impostos_saude);
     const aplicacao = numVal(form.aplicacao_saude);
     if (!receita) return null;
     return aplicacao / receita;
