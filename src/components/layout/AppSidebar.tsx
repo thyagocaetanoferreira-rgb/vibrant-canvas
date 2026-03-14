@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Send, ListTodo, Scale, ShieldAlert,
   MapPin, Users, FileText, Bell, Settings, Calendar,
   BarChart3, Globe, CreditCard, ChevronLeft, ChevronRight, Building2,
-  ChevronDown,
+  ChevronDown, Upload,
 } from "lucide-react";
 
 interface NavItem {
