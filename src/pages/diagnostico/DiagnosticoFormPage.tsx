@@ -202,10 +202,13 @@ const DiagnosticoFormPage = () => {
         despesa_liquidada: "Despesa Liquidada",
         despesa_paga: "Despesa Paga",
         caixa: "Caixa",
-        aplicacao_educacao: "Índice Educação (%)",
-        aplicacao_fundeb_70: "Índice FUNDEB (%)",
-        aplicacao_saude: "Índice Saúde (%)",
-        gasto_pessoal: "Índice Pessoal (%)",
+        receita_impostos: "Receita de Impostos (Educação)",
+        aplicacao_educacao: "Aplicação em MDE (Educação)",
+        receita_fundeb: "Receita FUNDEB",
+        aplicacao_fundeb_70: "Aplicação FUNDEB 70%",
+        receita_corrente_liquida: "Receita Corrente Líquida",
+        aplicacao_saude: "Aplicação em Saúde",
+        gasto_pessoal: "Gasto com Pessoal",
       };
       const missing = Object.entries(requiredFields).filter(([f]) => {
         const v = form[f];
