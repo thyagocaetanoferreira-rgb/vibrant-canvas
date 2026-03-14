@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Send, ListTodo, Scale, ShieldAlert,
   MapPin, Users, FileText, Bell, Settings, Calendar,
   BarChart3, Globe, CreditCard, ChevronLeft, ChevronRight, Building2,
-  ChevronDown,
+  ChevronDown, Upload,
 } from "lucide-react";
 
 interface NavItem {
@@ -57,6 +57,7 @@ const navEntries: NavEntry[] = [
     children: [
       { label: "Clientes", icon: Building2, path: "/clientes" },
       { label: "Usuários", icon: Users, path: "/usuarios" },
+      { label: "Importar Lançamentos", icon: Upload, path: "/importar-lancamentos" },
     ],
   },
 ];
