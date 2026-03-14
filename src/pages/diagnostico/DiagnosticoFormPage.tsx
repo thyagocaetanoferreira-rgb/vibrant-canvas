@@ -469,6 +469,66 @@ const DiagnosticoFormPage = () => {
           </div>
           <MoneyInput label="Despesa Liquidada" value={form.despesa_liquidada} onChange={(v) => set("despesa_liquidada", v)} required />
           <MoneyInput label="Despesa Paga" value={form.despesa_paga} onChange={(v) => set("despesa_paga", v)} required />
+
+          {/* Totalizer - Despesas Acumuladas */}
+          {form.mes_referencia && (
+            <div className="mt-4 rounded-xl border border-[hsl(207,100%,46%)]/20 bg-gradient-to-r from-[hsl(186,100%,41%)]/5 via-[hsl(207,100%,46%)]/5 to-[hsl(209,96%,33%)]/5 p-4 space-y-3">
+              <h4 className="text-sm font-semibold text-[hsl(209,96%,33%)] flex items-center gap-2">
+                📊 Despesas Acumuladas no Exercício
+              </h4>
+
+              {/* Empenhada */}
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Empenhada</p>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Acumulado até {Number(form.mes_referencia) > 1 ? MESES[Number(form.mes_referencia) - 2] : "—"}:</span>
+                  <span className="font-medium text-card-foreground">{loadingAcumulada ? "..." : formatBRL(despEmpAnterior)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Mês atual ({MESES[Number(form.mes_referencia) - 1]}):</span>
+                  <span className="font-medium text-card-foreground">{formatBRL(totalEmpenhado)}</span>
+                </div>
+                <div className="border-t border-[hsl(207,100%,46%)]/20 pt-1 flex justify-between text-sm">
+                  <span className="font-semibold text-[hsl(209,96%,33%)]">Total Acumulado:</span>
+                  <span className="font-bold text-[hsl(207,100%,46%)]">{loadingAcumulada ? "..." : formatBRL(despEmpAnterior + totalEmpenhado)}</span>
+                </div>
+              </div>
+
+              {/* Liquidada */}
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Liquidada</p>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Acumulado até {Number(form.mes_referencia) > 1 ? MESES[Number(form.mes_referencia) - 2] : "—"}:</span>
+                  <span className="font-medium text-card-foreground">{loadingAcumulada ? "..." : formatBRL(despLiqAnterior)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Mês atual ({MESES[Number(form.mes_referencia) - 1]}):</span>
+                  <span className="font-medium text-card-foreground">{formatBRL(numVal(form.despesa_liquidada))}</span>
+                </div>
+                <div className="border-t border-[hsl(207,100%,46%)]/20 pt-1 flex justify-between text-sm">
+                  <span className="font-semibold text-[hsl(209,96%,33%)]">Total Acumulado:</span>
+                  <span className="font-bold text-[hsl(207,100%,46%)]">{loadingAcumulada ? "..." : formatBRL(despLiqAnterior + numVal(form.despesa_liquidada))}</span>
+                </div>
+              </div>
+
+              {/* Paga */}
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Paga</p>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Acumulado até {Number(form.mes_referencia) > 1 ? MESES[Number(form.mes_referencia) - 2] : "—"}:</span>
+                  <span className="font-medium text-card-foreground">{loadingAcumulada ? "..." : formatBRL(despPagAnterior)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Mês atual ({MESES[Number(form.mes_referencia) - 1]}):</span>
+                  <span className="font-medium text-card-foreground">{formatBRL(numVal(form.despesa_paga))}</span>
+                </div>
+                <div className="border-t border-[hsl(207,100%,46%)]/20 pt-1 flex justify-between text-sm">
+                  <span className="font-semibold text-[hsl(209,96%,33%)]">Total Acumulado:</span>
+                  <span className="font-bold text-[hsl(207,100%,46%)]">{loadingAcumulada ? "..." : formatBRL(despPagAnterior + numVal(form.despesa_paga))}</span>
+                </div>
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         {/* ABA 3 — CAIXA */}
