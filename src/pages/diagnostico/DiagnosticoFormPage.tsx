@@ -200,7 +200,7 @@ const DiagnosticoFormPage = () => {
   }, [form.receita_fundeb, form.aplicacao_fundeb_70]);
 
   const indiceSaude = useMemo(() => {
-    const receita = numVal(form.receita_impostos);
+    const receita = numVal(form.receita_impostos_saude);
     const aplicacao = numVal(form.aplicacao_saude);
     if (!receita) return null;
     return aplicacao / receita;
@@ -236,6 +236,7 @@ const DiagnosticoFormPage = () => {
         receita_fundeb: "Receita FUNDEB",
         aplicacao_fundeb_70: "Aplicação FUNDEB 70%",
         receita_corrente_liquida: "Receita Corrente Líquida",
+        receita_impostos_saude: "Receita de Impostos (Saúde)",
         aplicacao_saude: "Aplicação em Saúde",
         gasto_pessoal: "Gasto com Pessoal",
       };
@@ -258,8 +259,8 @@ const DiagnosticoFormPage = () => {
       "supl_anulacao_perc","supl_anulacao_autorizada","supl_anulacao_utilizado",
       "supl_superavit_perc","superavit_exerc_anterior","supl_superavit_autorizada","supl_superavit_utilizado",
       "supl_excesso_perc","excesso_projetado","supl_excesso_utilizado",
-      "receita_impostos","aplicacao_educacao","receita_fundeb","aplicacao_fundeb_70","aplicacao_saude",
-      "receita_corrente_liquida","gasto_pessoal",
+      "receita_impostos","aplicacao_educacao","receita_fundeb","aplicacao_fundeb_70",
+      "receita_impostos_saude","aplicacao_saude","receita_corrente_liquida","gasto_pessoal",
     ];
 
     const payload: Record<string, any> = {
@@ -551,7 +552,7 @@ const DiagnosticoFormPage = () => {
           {/* Saúde */}
           <div className="space-y-3 rounded-lg border border-border p-4">
             <h4 className="text-sm font-semibold text-card-foreground">🏥 Saúde (ASPS)</h4>
-            <p className="text-xs text-muted-foreground">Utiliza a mesma Receita de Impostos informada acima (Educação).</p>
+            <MoneyInput label="Receita de Impostos (Saúde) *" value={form.receita_impostos_saude} onChange={(v) => set("receita_impostos_saude", v)} required />
             <MoneyInput label="Aplicação em Saúde *" value={form.aplicacao_saude} onChange={(v) => set("aplicacao_saude", v)} required />
             <IndiceResumo label="Índice de Saúde" value={indiceSaude} statusFn={statusSaude} />
           </div>
@@ -633,7 +634,7 @@ const DiagnosticoFormPage = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <IndiceResumo label="Educação" value={numVal(savedData.receita_impostos) ? numVal(savedData.aplicacao_educacao) / numVal(savedData.receita_impostos) : null} statusFn={statusEducacao} />
                   <IndiceResumo label="FUNDEB" value={numVal(savedData.receita_fundeb) ? numVal(savedData.aplicacao_fundeb_70) / numVal(savedData.receita_fundeb) : null} statusFn={statusFundeb} />
-                  <IndiceResumo label="Saúde" value={numVal(savedData.receita_impostos) ? numVal(savedData.aplicacao_saude) / numVal(savedData.receita_impostos) : null} statusFn={statusSaude} />
+                  <IndiceResumo label="Saúde" value={numVal(savedData.receita_impostos_saude) ? numVal(savedData.aplicacao_saude) / numVal(savedData.receita_impostos_saude) : null} statusFn={statusSaude} />
                   <IndiceResumo label="Pessoal" value={numVal(savedData.receita_corrente_liquida) ? numVal(savedData.gasto_pessoal) / numVal(savedData.receita_corrente_liquida) : null} statusFn={statusPessoal} />
                 </div>
               </div>

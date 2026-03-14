@@ -89,7 +89,7 @@ const DiagnosticoListPage = () => {
               const l = lancByMes[mes];
               const edIdx = l && l.receita_impostos ? l.aplicacao_educacao / l.receita_impostos : null;
               const fbIdx = l && l.receita_fundeb ? l.aplicacao_fundeb_70 / l.receita_fundeb : null;
-              const saIdx = l && l.receita_impostos ? l.aplicacao_saude / l.receita_impostos : null;
+              const saIdx = l && l.receita_impostos_saude ? l.aplicacao_saude / l.receita_impostos_saude : null;
               const peIdx = l && l.receita_corrente_liquida ? l.gasto_pessoal / l.receita_corrente_liquida : null;
 
               return (
