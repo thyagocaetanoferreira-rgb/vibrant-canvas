@@ -200,11 +200,11 @@ const DiagnosticoFormPage = () => {
   }, [form.receita_fundeb, form.aplicacao_fundeb_70]);
 
   const indiceSaude = useMemo(() => {
-    const rcl = numVal(form.receita_corrente_liquida);
+    const receita = numVal(form.receita_impostos);
     const aplicacao = numVal(form.aplicacao_saude);
-    if (!rcl) return null;
-    return aplicacao / rcl;
-  }, [form.receita_corrente_liquida, form.aplicacao_saude]);
+    if (!receita) return null;
+    return aplicacao / receita;
+  }, [form.receita_impostos, form.aplicacao_saude]);
 
   const indicePessoal = useMemo(() => {
     const rcl = numVal(form.receita_corrente_liquida);
