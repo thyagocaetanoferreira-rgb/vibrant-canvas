@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Save, CheckCircle2, AlertTriangle, Printer } from "lucide-react";
 import { toast } from "sonner";
 import {
-  calcReceitaPrevistaMes, calcTotalEmpenhado, calcResFinanceiroEmpenhado,
+  calcReceitaPrevistaMes, calcTotalEmpenhado, calcResFinanceiroEmpenhado, calcResFinanceiroLiquidado,
   statusEducacao, statusFundeb, statusSaude, statusPessoal,
   formatBRL, formatPct, LABEL_STATUS,
 } from "@/lib/calculos-lrf";
@@ -194,7 +194,8 @@ const DiagnosticoFormPage = () => {
   // Calculated values
   const recPrevMes = useMemo(() => calcReceitaPrevistaMes(numVal(form.receita_prevista_ano)), [form.receita_prevista_ano]);
   const totalEmpenhado = useMemo(() => calcTotalEmpenhado(numVal(form.despesa_empenhada_f1), numVal(form.despesa_empenhada_f2)), [form.despesa_empenhada_f1, form.despesa_empenhada_f2]);
-  const resFinEmpenhado = useMemo(() => calcResFinanceiroEmpenhado(numVal(form.caixa), numVal(form.despesa_nao_processada), numVal(form.consignacoes_tesouraria)), [form.caixa, form.despesa_nao_processada, form.consignacoes_tesouraria]);
+  const resFinEmpenhado = useMemo(() => calcResFinanceiroEmpenhado(numVal(form.caixa), numVal(form.consignacoes_tesouraria), numVal(form.despesa_nao_processada), numVal(form.despesa_processada), numVal(form.resto_nao_processado), numVal(form.resto_processado)), [form.caixa, form.consignacoes_tesouraria, form.despesa_nao_processada, form.despesa_processada, form.resto_nao_processado, form.resto_processado]);
+  const resFinLiquidado = useMemo(() => calcResFinanceiroLiquidado(numVal(form.caixa), numVal(form.consignacoes_tesouraria), numVal(form.despesa_processada), numVal(form.resto_processado)), [form.caixa, form.consignacoes_tesouraria, form.despesa_processada, form.resto_processado]);
 
   // Auto-calculated LRF indices
   const indiceEducacao = useMemo(() => {
@@ -549,10 +550,16 @@ const DiagnosticoFormPage = () => {
             <MoneyInput label="Resto não processado" value={form.resto_nao_processado} onChange={(v) => set("resto_nao_processado", v)} required />
             <MoneyInput label="Resto processado" value={form.resto_processado} onChange={(v) => set("resto_processado", v)} required />
           </div>
-          <div className="bg-muted/30 rounded-lg px-4 py-3 text-sm text-muted-foreground space-y-1">
-            <p>Resultado Financeiro (calculado):</p>
-            <p>Empenhado: <span className="font-medium text-card-foreground">{formatBRL(resFinEmpenhado)}</span></p>
-            <p className="text-xs">(= Caixa − Desp. não proc. − Consignações)</p>
+          <div className="bg-muted/30 rounded-lg px-4 py-3 text-sm text-muted-foreground space-y-2">
+            <p className="font-semibold text-card-foreground">Resultado Financeiro (calculado)</p>
+            <div className="space-y-1">
+              <p>Empenhado: <span className={cn("font-medium", resFinEmpenhado >= 0 ? "text-[hsl(var(--success))]" : "text-destructive")}>{formatBRL(resFinEmpenhado)}</span></p>
+              <p className="text-xs">(= Caixa − (Consignações + Desp. não proc. + Desp. proc. + Resto não proc. + Resto proc.))</p>
+            </div>
+            <div className="space-y-1">
+              <p>Liquidado: <span className={cn("font-medium", resFinLiquidado >= 0 ? "text-[hsl(var(--success))]" : "text-destructive")}>{formatBRL(resFinLiquidado)}</span></p>
+              <p className="text-xs">(= Caixa − (Consignações + Desp. proc. + Resto proc.))</p>
+            </div>
           </div>
         </TabsContent>
 
@@ -699,7 +706,8 @@ const DiagnosticoFormPage = () => {
                 <ResumoField label="Consignações" value={savedData.consignacoes_tesouraria} />
                 <ResumoField label="Resto não processado" value={savedData.resto_nao_processado} />
                 <ResumoField label="Resto processado" value={savedData.resto_processado} />
-                <ResumoField label="Res. Fin. Empenhado" value={calcResFinanceiroEmpenhado(savedData.caixa || 0, savedData.despesa_nao_processada || 0, savedData.consignacoes_tesouraria || 0)} />
+                <ResumoField label="Res. Fin. Empenhado" value={calcResFinanceiroEmpenhado(savedData.caixa || 0, savedData.consignacoes_tesouraria || 0, savedData.despesa_nao_processada || 0, savedData.despesa_processada || 0, savedData.resto_nao_processado || 0, savedData.resto_processado || 0)} />
+                <ResumoField label="Res. Fin. Liquidado" value={calcResFinanceiroLiquidado(savedData.caixa || 0, savedData.consignacoes_tesouraria || 0, savedData.despesa_processada || 0, savedData.resto_processado || 0)} />
               </div>
               <div>
                 <h4 className="font-semibold text-card-foreground mb-1">Índices LRF</h4>
