@@ -193,7 +193,7 @@ const FinanceCard = ({
   <div className="flex items-center gap-2">
     <Card className="flex-1 min-w-[120px] text-center">
       <CardContent className="py-3 px-3">
-        <p className="text-xs text-muted-foreground mb-1">{label}</p>
+        <p className="text-sm text-muted-foreground mb-1">{label}</p>
         <p className="text-sm font-heading font-bold">{formatBRL(value)}</p>
       </CardContent>
     </Card>
@@ -380,11 +380,11 @@ const BoletimContabilPage = () => {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-muted/50 rounded-xl p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Receita Realizada</p>
+                  <p className="text-sm text-muted-foreground">Receita Realizada</p>
                   <p className="text-xl font-heading font-bold text-foreground mt-1">{formatBRL(calc.receitaRealizada)}</p>
                 </div>
                 <div className="bg-muted/50 rounded-xl p-4 text-center">
-                  <p className="text-xs text-muted-foreground">Despesa Empenhada (F1)</p>
+                  <p className="text-sm text-muted-foreground">Despesa Empenhada (F1)</p>
                   <p className="text-xl font-heading font-bold text-foreground mt-1">{formatBRL(calc.despesaEmpenhada)}</p>
                 </div>
                 <div
@@ -393,7 +393,7 @@ const BoletimContabilPage = () => {
                     calc.resultadoOrcamentario >= 0 ? "bg-success/10" : "bg-destructive/10"
                   )}
                 >
-                  <p className="text-xs text-muted-foreground">Resultado Orçamentário</p>
+                  <p className="text-sm text-muted-foreground">Resultado Orçamentário</p>
                   <div className="flex items-center justify-center gap-2 mt-1">
                     {calc.resultadoOrcamentario >= 0 ? (
                       <TrendingUp className="w-5 h-5 text-success" />
