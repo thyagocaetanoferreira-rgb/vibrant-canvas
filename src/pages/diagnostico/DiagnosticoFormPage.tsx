@@ -236,6 +236,7 @@ const DiagnosticoFormPage = () => {
         receita_fundeb: "Receita FUNDEB",
         aplicacao_fundeb_70: "Aplicação FUNDEB 70%",
         receita_corrente_liquida: "Receita Corrente Líquida",
+        receita_impostos_saude: "Receita de Impostos (Saúde)",
         aplicacao_saude: "Aplicação em Saúde",
         gasto_pessoal: "Gasto com Pessoal",
       };
