@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAppContext } from "@/contexts/AppContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, CheckCircle2, Clock } from "lucide-react";
 import { formatBRL, formatPct, statusEducacao, statusFundeb, statusSaude, statusPessoal, calcResFinanceiroLiquidado } from "@/lib/calculos-lrf";
 import { cn } from "@/lib/utils";
 
