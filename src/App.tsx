@@ -25,6 +25,7 @@ import UsuarioFormPage from "@/pages/usuarios/UsuarioFormPage";
 import UsuarioPermissoesPage from "@/pages/usuarios/UsuarioPermissoesPage";
 import ClientesListPage from "@/pages/clientes/ClientesListPage";
 import ClienteFormPage from "@/pages/clientes/ClienteFormPage";
+import ImportarLancamentosPage from "@/pages/ImportarLancamentosPage";
 import { Calendar, BarChart3, MapPin, Users, Globe, CreditCard, FileText, Bell, Settings } from "lucide-react";
 
 const queryClient = new QueryClient();
@@ -71,6 +72,7 @@ const App = () => (
               <Route path="/clientes" element={<ClientesListPage />} />
               <Route path="/clientes/novo" element={<ClienteFormPage />} />
               <Route path="/clientes/:id/editar" element={<ClienteFormPage />} />
+              <Route path="/importar-lancamentos" element={<ImportarLancamentosPage />} />
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />
