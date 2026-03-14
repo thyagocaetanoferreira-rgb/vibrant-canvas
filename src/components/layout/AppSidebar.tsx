@@ -37,7 +37,13 @@ const navEntries: NavEntry[] = [
       { label: "Diagnóstico", icon: FileText, path: "/diagnostico" },
     ],
   },
-  { label: "Relatórios", icon: BarChart3, path: "/relatorios" },
+  {
+    label: "Relatórios",
+    icon: BarChart3,
+    children: [
+      { label: "Boletim Contábil", icon: FileText, path: "/relatorios/boletim-contabil" },
+    ],
+  },
   { label: "Jurídico", icon: Scale, path: "/juridico" },
   { label: "Gestão de Riscos", icon: ShieldAlert, path: "/riscos" },
   { label: "Visitas", icon: MapPin, path: "/visitas" },
