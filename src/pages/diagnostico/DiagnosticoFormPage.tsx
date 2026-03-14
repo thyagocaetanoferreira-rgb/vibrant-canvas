@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Save, CheckCircle2, AlertTriangle, Printer } from "lucide-react";
 import { toast } from "sonner";
 import {
-  calcReceitaPrevistaMes, calcTotalEmpenhado, calcResFinanceiroEmpenhado,
+  calcReceitaPrevistaMes, calcTotalEmpenhado, calcResFinanceiroEmpenhado, calcResFinanceiroLiquidado,
   statusEducacao, statusFundeb, statusSaude, statusPessoal,
   formatBRL, formatPct, LABEL_STATUS,
 } from "@/lib/calculos-lrf";
