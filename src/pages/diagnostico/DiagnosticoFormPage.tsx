@@ -200,11 +200,11 @@ const DiagnosticoFormPage = () => {
   }, [form.receita_fundeb, form.aplicacao_fundeb_70]);
 
   const indiceSaude = useMemo(() => {
-    const rcl = numVal(form.receita_corrente_liquida);
+    const receita = numVal(form.receita_impostos);
     const aplicacao = numVal(form.aplicacao_saude);
-    if (!rcl) return null;
-    return aplicacao / rcl;
-  }, [form.receita_corrente_liquida, form.aplicacao_saude]);
+    if (!receita) return null;
+    return aplicacao / receita;
+  }, [form.receita_impostos, form.aplicacao_saude]);
 
   const indicePessoal = useMemo(() => {
     const rcl = numVal(form.receita_corrente_liquida);
@@ -548,21 +548,21 @@ const DiagnosticoFormPage = () => {
             <IndiceResumo label="Índice FUNDEB" value={indiceFundeb} statusFn={statusFundeb} />
           </div>
 
-          {/* Saúde + Pessoal compartilham RCL */}
-          <div className="space-y-3 rounded-lg border border-border p-4">
-            <h4 className="text-sm font-semibold text-card-foreground">💰 Receita Corrente Líquida (RCL)</h4>
-            <MoneyInput label="Receita Corrente Líquida *" value={form.receita_corrente_liquida} onChange={(v) => set("receita_corrente_liquida", v)} required hint="Utilizada como base para os índices de Saúde e Pessoal." />
-          </div>
-
+          {/* Saúde */}
           <div className="space-y-3 rounded-lg border border-border p-4">
             <h4 className="text-sm font-semibold text-card-foreground">🏥 Saúde (ASPS)</h4>
+            <p className="text-xs text-muted-foreground">Utiliza a mesma Receita de Impostos informada acima (Educação).</p>
             <MoneyInput label="Aplicação em Saúde *" value={form.aplicacao_saude} onChange={(v) => set("aplicacao_saude", v)} required />
             <IndiceResumo label="Índice de Saúde" value={indiceSaude} statusFn={statusSaude} />
           </div>
 
+          {/* Pessoal */}
           <div className="space-y-3 rounded-lg border border-border p-4">
             <h4 className="text-sm font-semibold text-card-foreground">👥 Pessoal (LRF)</h4>
-            <MoneyInput label="Gasto com Pessoal *" value={form.gasto_pessoal} onChange={(v) => set("gasto_pessoal", v)} required />
+            <div className="grid grid-cols-2 gap-4">
+              <MoneyInput label="Receita Corrente Líquida (RCL) *" value={form.receita_corrente_liquida} onChange={(v) => set("receita_corrente_liquida", v)} required />
+              <MoneyInput label="Gasto com Pessoal *" value={form.gasto_pessoal} onChange={(v) => set("gasto_pessoal", v)} required />
+            </div>
             <IndiceResumo label="Índice de Pessoal" value={indicePessoal} statusFn={statusPessoal} />
           </div>
 
@@ -633,7 +633,7 @@ const DiagnosticoFormPage = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <IndiceResumo label="Educação" value={numVal(savedData.receita_impostos) ? numVal(savedData.aplicacao_educacao) / numVal(savedData.receita_impostos) : null} statusFn={statusEducacao} />
                   <IndiceResumo label="FUNDEB" value={numVal(savedData.receita_fundeb) ? numVal(savedData.aplicacao_fundeb_70) / numVal(savedData.receita_fundeb) : null} statusFn={statusFundeb} />
-                  <IndiceResumo label="Saúde" value={numVal(savedData.receita_corrente_liquida) ? numVal(savedData.aplicacao_saude) / numVal(savedData.receita_corrente_liquida) : null} statusFn={statusSaude} />
+                  <IndiceResumo label="Saúde" value={numVal(savedData.receita_impostos) ? numVal(savedData.aplicacao_saude) / numVal(savedData.receita_impostos) : null} statusFn={statusSaude} />
                   <IndiceResumo label="Pessoal" value={numVal(savedData.receita_corrente_liquida) ? numVal(savedData.gasto_pessoal) / numVal(savedData.receita_corrente_liquida) : null} statusFn={statusPessoal} />
                 </div>
               </div>
