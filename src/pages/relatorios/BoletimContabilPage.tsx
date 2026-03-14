@@ -260,10 +260,15 @@ const BoletimContabilPage = () => {
       n(l.caixa), n(l.consignacoes_tesouraria), n(l.despesa_processada), n(l.resto_processado)
     );
 
-    const idxEducacao = calcIndiceEducacao(n(l.aplicacao_educacao), n(l.receita_impostos));
-    const idxFundeb = calcIndiceFundeb(n(l.aplicacao_fundeb_70), n(l.receita_fundeb));
-    const idxSaude = calcIndiceSaude(n(l.aplicacao_saude), n(l.receita_impostos_saude));
-    const idxPessoal = calcIndicePessoal(n(l.gasto_pessoal), n(l.receita_corrente_liquida));
+    // Handle both cases: monetary values (has denominator) or direct percentages (imported data)
+    const idxEducacao = l.receita_impostos ? calcIndiceEducacao(n(l.aplicacao_educacao), n(l.receita_impostos))
+      : (l.aplicacao_educacao ? n(l.aplicacao_educacao) / 100 : null);
+    const idxFundeb = l.receita_fundeb ? calcIndiceFundeb(n(l.aplicacao_fundeb_70), n(l.receita_fundeb))
+      : (l.aplicacao_fundeb_70 ? n(l.aplicacao_fundeb_70) / 100 : null);
+    const idxSaude = l.receita_impostos_saude ? calcIndiceSaude(n(l.aplicacao_saude), n(l.receita_impostos_saude))
+      : (l.aplicacao_saude ? n(l.aplicacao_saude) / 100 : null);
+    const idxPessoal = l.receita_corrente_liquida ? calcIndicePessoal(n(l.gasto_pessoal), n(l.receita_corrente_liquida))
+      : (l.gasto_pessoal ? n(l.gasto_pessoal) / 100 : null);
 
     return {
       receitaRealizada,
