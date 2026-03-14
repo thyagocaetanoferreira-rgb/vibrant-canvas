@@ -57,6 +57,7 @@ const navEntries: NavEntry[] = [
     children: [
       { label: "Clientes", icon: Building2, path: "/clientes" },
       { label: "Usuários", icon: Users, path: "/usuarios" },
+      { label: "Importar Lançamentos", icon: Upload, path: "/importar-lancamentos" },
     ],
   },
 ];
