@@ -193,7 +193,7 @@ const FinanceCard = ({
   <div className="flex items-center gap-2">
     <Card className="flex-1 min-w-[120px] text-center">
       <CardContent className="py-3 px-3">
-        <p className="text-xs text-muted-foreground mb-1">{label}</p>
+        <p className="text-sm text-muted-foreground mb-1">{label}</p>
         <p className="text-sm font-heading font-bold">{formatBRL(value)}</p>
       </CardContent>
     </Card>
