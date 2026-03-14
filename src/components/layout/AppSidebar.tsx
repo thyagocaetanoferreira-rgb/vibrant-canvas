@@ -49,15 +49,17 @@ const navEntries: NavEntry[] = [
   {
     label: "Integrações",
     icon: Globe,
-    path: "/integracoes",
-  } as NavItem,
+    children: [
+      { label: "Integrações", icon: Globe, path: "/integracoes" },
+      { label: "Importar Lançamentos", icon: Upload, path: "/importar-lancamentos" },
+    ],
+  },
   {
     label: "Configurações",
     icon: Settings,
     children: [
       { label: "Clientes", icon: Building2, path: "/clientes" },
       { label: "Usuários", icon: Users, path: "/usuarios" },
-      { label: "Importar Lançamentos", icon: Upload, path: "/importar-lancamentos" },
     ],
   },
 ];
