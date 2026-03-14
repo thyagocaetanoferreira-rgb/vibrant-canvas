@@ -259,8 +259,8 @@ const DiagnosticoFormPage = () => {
       "supl_anulacao_perc","supl_anulacao_autorizada","supl_anulacao_utilizado",
       "supl_superavit_perc","superavit_exerc_anterior","supl_superavit_autorizada","supl_superavit_utilizado",
       "supl_excesso_perc","excesso_projetado","supl_excesso_utilizado",
-      "receita_impostos","aplicacao_educacao","receita_fundeb","aplicacao_fundeb_70","aplicacao_saude",
-      "receita_corrente_liquida","gasto_pessoal",
+      "receita_impostos","aplicacao_educacao","receita_fundeb","aplicacao_fundeb_70",
+      "receita_impostos_saude","aplicacao_saude","receita_corrente_liquida","gasto_pessoal",
     ];
 
     const payload: Record<string, any> = {
