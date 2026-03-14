@@ -50,7 +50,7 @@ const navEntries: NavEntry[] = [
     label: "Integrações",
     icon: Globe,
     children: [
-      { label: "Integrações", icon: Globe, path: "/integracoes" },
+      { label: "TCM-GO", icon: Globe, path: "/integracoes" },
       { label: "Importar Lançamentos", icon: Upload, path: "/importar-lancamentos" },
     ],
   },
