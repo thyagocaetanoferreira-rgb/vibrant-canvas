@@ -146,31 +146,43 @@ const DiagnosticoFormPage = () => {
     prefill();
   }, [form.mes_referencia, form.ano_referencia, municipio, isEdit]);
 
-  // Fetch accumulated revenue from previous months
+  // Fetch accumulated values from previous months
   const [receitaAcumuladaAnterior, setReceitaAcumuladaAnterior] = useState<number>(0);
+  const [despEmpAnterior, setDespEmpAnterior] = useState<number>(0);
+  const [despLiqAnterior, setDespLiqAnterior] = useState<number>(0);
+  const [despPagAnterior, setDespPagAnterior] = useState<number>(0);
   const [loadingAcumulada, setLoadingAcumulada] = useState(false);
 
   useEffect(() => {
     if (!municipio || !form.mes_referencia || !form.ano_referencia) {
       setReceitaAcumuladaAnterior(0);
+      setDespEmpAnterior(0);
+      setDespLiqAnterior(0);
+      setDespPagAnterior(0);
       return;
     }
     const mesNum = Number(form.mes_referencia);
     if (mesNum <= 1) {
       setReceitaAcumuladaAnterior(0);
+      setDespEmpAnterior(0);
+      setDespLiqAnterior(0);
+      setDespPagAnterior(0);
       return;
     }
     const fetchAcumulada = async () => {
       setLoadingAcumulada(true);
       const { data } = await supabase
         .from("lancamentos_mensais")
-        .select("receita_realizada")
+        .select("receita_realizada,despesa_empenhada_f1,despesa_empenhada_f2,despesa_liquidada,despesa_paga")
         .eq("cliente_id", municipio.clienteId)
         .eq("ano_referencia", Number(form.ano_referencia))
         .lt("mes_referencia", mesNum);
       
-      const total = (data || []).reduce((acc, row) => acc + numVal(row.receita_realizada), 0);
-      setReceitaAcumuladaAnterior(total);
+      const rows = data || [];
+      setReceitaAcumuladaAnterior(rows.reduce((acc, r) => acc + numVal(r.receita_realizada), 0));
+      setDespEmpAnterior(rows.reduce((acc, r) => acc + numVal(r.despesa_empenhada_f1) + numVal(r.despesa_empenhada_f2), 0));
+      setDespLiqAnterior(rows.reduce((acc, r) => acc + numVal(r.despesa_liquidada), 0));
+      setDespPagAnterior(rows.reduce((acc, r) => acc + numVal(r.despesa_paga), 0));
       setLoadingAcumulada(false);
     };
     fetchAcumulada();
