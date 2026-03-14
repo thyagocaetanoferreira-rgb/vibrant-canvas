@@ -365,10 +365,6 @@ const DiagnosticoFormPage = () => {
             Receita Prevista Mensal: <span className="font-medium text-card-foreground">{formatBRL(recPrevMes)}</span> (= Ano ÷ 12)
           </div>
           <MoneyInput label="Receita Realizada" value={form.receita_realizada} onChange={(v) => set("receita_realizada", v)} required />
-          <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-4 py-2.5 text-xs text-warning">
-            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-            <span><strong>Atenção!</strong> Este valor da receita realizada deve considerar a receita de todos os órgãos, exceto Fundo de Previdência Social (RPPS).</span>
-          </div>
 
           {/* Totalizer - Receita Acumulada */}
           {form.mes_referencia && (
@@ -405,6 +401,11 @@ const DiagnosticoFormPage = () => {
               </div>
             </div>
           )}
+
+          <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-4 py-2.5 text-xs text-warning">
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+            <span><strong>Atenção!</strong> Este valor da receita realizada deve considerar a receita de todos os órgãos, exceto Fundo de Previdência Social (RPPS).</span>
+          </div>
         </TabsContent>
 
         {/* ABA 2 — DESPESAS */}
