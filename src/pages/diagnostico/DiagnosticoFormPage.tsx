@@ -184,6 +184,35 @@ const DiagnosticoFormPage = () => {
   const totalEmpenhado = useMemo(() => calcTotalEmpenhado(numVal(form.despesa_empenhada_f1), numVal(form.despesa_empenhada_f2)), [form.despesa_empenhada_f1, form.despesa_empenhada_f2]);
   const resFinEmpenhado = useMemo(() => calcResFinanceiroEmpenhado(numVal(form.caixa), numVal(form.despesa_nao_processada), numVal(form.consignacoes_tesouraria)), [form.caixa, form.despesa_nao_processada, form.consignacoes_tesouraria]);
 
+  // Auto-calculated LRF indices
+  const indiceEducacao = useMemo(() => {
+    const receita = numVal(form.receita_impostos);
+    const aplicacao = numVal(form.aplicacao_educacao);
+    if (!receita) return null;
+    return aplicacao / receita;
+  }, [form.receita_impostos, form.aplicacao_educacao]);
+
+  const indiceFundeb = useMemo(() => {
+    const receita = numVal(form.receita_fundeb);
+    const aplicacao = numVal(form.aplicacao_fundeb_70);
+    if (!receita) return null;
+    return aplicacao / receita;
+  }, [form.receita_fundeb, form.aplicacao_fundeb_70]);
+
+  const indiceSaude = useMemo(() => {
+    const rcl = numVal(form.receita_corrente_liquida);
+    const aplicacao = numVal(form.aplicacao_saude);
+    if (!rcl) return null;
+    return aplicacao / rcl;
+  }, [form.receita_corrente_liquida, form.aplicacao_saude]);
+
+  const indicePessoal = useMemo(() => {
+    const rcl = numVal(form.receita_corrente_liquida);
+    const gasto = numVal(form.gasto_pessoal);
+    if (!rcl) return null;
+    return gasto / rcl;
+  }, [form.receita_corrente_liquida, form.gasto_pessoal]);
+
 
   const handleSave = async (status: "rascunho" | "finalizado") => {
     if (!municipio || !usuario) {
