@@ -146,6 +146,39 @@ const DiagnosticoFormPage = () => {
     prefill();
   }, [form.mes_referencia, form.ano_referencia, municipio, isEdit]);
 
+  // Fetch accumulated revenue from previous months
+  const [receitaAcumuladaAnterior, setReceitaAcumuladaAnterior] = useState<number>(0);
+  const [loadingAcumulada, setLoadingAcumulada] = useState(false);
+
+  useEffect(() => {
+    if (!municipio || !form.mes_referencia || !form.ano_referencia) {
+      setReceitaAcumuladaAnterior(0);
+      return;
+    }
+    const mesNum = Number(form.mes_referencia);
+    if (mesNum <= 1) {
+      setReceitaAcumuladaAnterior(0);
+      return;
+    }
+    const fetchAcumulada = async () => {
+      setLoadingAcumulada(true);
+      const { data } = await supabase
+        .from("lancamentos_mensais")
+        .select("receita_realizada")
+        .eq("cliente_id", municipio.clienteId)
+        .eq("ano_referencia", Number(form.ano_referencia))
+        .lt("mes_referencia", mesNum);
+      
+      const total = (data || []).reduce((acc, row) => acc + numVal(row.receita_realizada), 0);
+      setReceitaAcumuladaAnterior(total);
+      setLoadingAcumulada(false);
+    };
+    fetchAcumulada();
+  }, [municipio, form.mes_referencia, form.ano_referencia]);
+
+  const receitaMesAtual = numVal(form.receita_realizada);
+  const receitaAcumuladaTotal = receitaAcumuladaAnterior + receitaMesAtual;
+
   // Calculated values
   const recPrevMes = useMemo(() => calcReceitaPrevistaMes(numVal(form.receita_prevista_ano)), [form.receita_prevista_ano]);
   const totalEmpenhado = useMemo(() => calcTotalEmpenhado(numVal(form.despesa_empenhada_f1), numVal(form.despesa_empenhada_f2)), [form.despesa_empenhada_f1, form.despesa_empenhada_f2]);
@@ -332,6 +365,42 @@ const DiagnosticoFormPage = () => {
             Receita Prevista Mensal: <span className="font-medium text-card-foreground">{formatBRL(recPrevMes)}</span> (= Ano ÷ 12)
           </div>
           <MoneyInput label="Receita Realizada" value={form.receita_realizada} onChange={(v) => set("receita_realizada", v)} required />
+
+          {/* Totalizer - Receita Acumulada */}
+          {form.mes_referencia && (
+            <div className="mt-4 rounded-xl border border-[hsl(207,100%,46%)]/20 bg-gradient-to-r from-[hsl(186,100%,41%)]/5 via-[hsl(207,100%,46%)]/5 to-[hsl(209,96%,33%)]/5 p-4 space-y-2">
+              <h4 className="text-sm font-semibold text-[hsl(209,96%,33%)] flex items-center gap-2">
+                📊 Receita Acumulada no Exercício
+                <span className="text-xs font-normal text-muted-foreground">
+                  (Ref. Anexo 10 — Lei 4.320/64)
+                </span>
+              </h4>
+              <div className="space-y-1.5">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    Acumulado até {Number(form.mes_referencia) > 1 ? MESES[Number(form.mes_referencia) - 2] : "—"}:
+                  </span>
+                  <span className="font-medium text-card-foreground">
+                    {loadingAcumulada ? "Carregando..." : formatBRL(receitaAcumuladaAnterior)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    Receita lançada ({MESES[Number(form.mes_referencia) - 1]}):
+                  </span>
+                  <span className="font-medium text-card-foreground">{formatBRL(receitaMesAtual)}</span>
+                </div>
+                <div className="border-t border-[hsl(207,100%,46%)]/20 pt-1.5 flex justify-between text-sm">
+                  <span className="font-semibold text-[hsl(209,96%,33%)]">
+                    Total Acumulado ({MESES[Number(form.mes_referencia) - 1]}):
+                  </span>
+                  <span className="font-bold text-[hsl(207,100%,46%)] text-base">
+                    {loadingAcumulada ? "..." : formatBRL(receitaAcumuladaTotal)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         {/* ABA 2 — DESPESAS */}
