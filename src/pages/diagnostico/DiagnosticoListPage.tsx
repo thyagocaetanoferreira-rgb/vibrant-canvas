@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, FileText, CheckCircle2, Clock } from "lucide-react";
-import { formatBRL, calcIndiceEducacao, calcIndiceFundeb, calcIndiceSaude, calcIndicePessoal, statusEducacao, statusFundeb, statusSaude, statusPessoal } from "@/lib/calculos-lrf";
+import { formatBRL, statusEducacao, statusFundeb, statusSaude, statusPessoal } from "@/lib/calculos-lrf";
 import { cn } from "@/lib/utils";
 
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
