@@ -26,6 +26,7 @@ import UsuarioPermissoesPage from "@/pages/usuarios/UsuarioPermissoesPage";
 import ClientesListPage from "@/pages/clientes/ClientesListPage";
 import ClienteFormPage from "@/pages/clientes/ClienteFormPage";
 import ImportarLancamentosPage from "@/pages/ImportarLancamentosPage";
+import BoletimContabilPage from "@/pages/relatorios/BoletimContabilPage";
 import { Calendar, BarChart3, MapPin, Users, Globe, CreditCard, FileText, Bell, Settings } from "lucide-react";
 
 const queryClient = new QueryClient();
