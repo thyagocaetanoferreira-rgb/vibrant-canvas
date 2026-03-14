@@ -429,6 +429,10 @@ const DiagnosticoFormPage = () => {
         {/* ABA 3 — CAIXA */}
         <TabsContent value="caixa" className="bg-card rounded-xl border border-border p-6 space-y-4 mt-4">
           <h3 className="font-heading font-semibold text-card-foreground">Disponibilidade de Caixa</h3>
+          <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-4 py-2.5 text-xs text-warning">
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+            <span><strong>Atenção!</strong> Os lançamentos devem considerar o montante acumulado (até o mês de referência).</span>
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <MoneyInput label="Caixa" value={form.caixa} onChange={(v) => set("caixa", v)} required />
             <MoneyInput label="Consignações / Tesouraria" value={form.consignacoes_tesouraria} onChange={(v) => set("consignacoes_tesouraria", v)} required />
