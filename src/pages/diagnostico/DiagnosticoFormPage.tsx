@@ -497,25 +497,44 @@ const DiagnosticoFormPage = () => {
         {/* ABA 5 — ÍNDICES LRF */}
         <TabsContent value="indices" className="bg-card rounded-xl border border-border p-6 space-y-6 mt-4">
           <h3 className="font-heading font-semibold text-card-foreground">Índices LRF</h3>
-          <p className="text-xs text-muted-foreground">Informe os percentuais apurados para cada índice.</p>
+          <p className="text-xs text-muted-foreground">Informe os valores de receita e despesa/aplicação. O índice será calculado automaticamente.</p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <PctInput label="Educação (MDE) *" value={form.aplicacao_educacao} onChange={(v) => set("aplicacao_educacao", v)} />
-              <IndiceResumo label="Educação" value={numVal(form.aplicacao_educacao) / 100 || null} statusFn={statusEducacao} />
+          {/* Educação MDE */}
+          <div className="space-y-3 rounded-lg border border-border p-4">
+            <h4 className="text-sm font-semibold text-card-foreground">📚 Educação (MDE)</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <MoneyInput label="Receita de Impostos *" value={form.receita_impostos} onChange={(v) => set("receita_impostos", v)} required />
+              <MoneyInput label="Aplicação em MDE *" value={form.aplicacao_educacao} onChange={(v) => set("aplicacao_educacao", v)} required />
             </div>
-            <div className="space-y-2">
-              <PctInput label="FUNDEB (70%) *" value={form.aplicacao_fundeb_70} onChange={(v) => set("aplicacao_fundeb_70", v)} />
-              <IndiceResumo label="FUNDEB" value={numVal(form.aplicacao_fundeb_70) / 100 || null} statusFn={statusFundeb} />
+            <IndiceResumo label="Índice de Educação" value={indiceEducacao} statusFn={statusEducacao} />
+          </div>
+
+          {/* FUNDEB */}
+          <div className="space-y-3 rounded-lg border border-border p-4">
+            <h4 className="text-sm font-semibold text-card-foreground">🎓 FUNDEB (70%)</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <MoneyInput label="Receita FUNDEB *" value={form.receita_fundeb} onChange={(v) => set("receita_fundeb", v)} required />
+              <MoneyInput label="Aplicação FUNDEB 70% *" value={form.aplicacao_fundeb_70} onChange={(v) => set("aplicacao_fundeb_70", v)} required />
             </div>
-            <div className="space-y-2">
-              <PctInput label="Saúde (ASPS) *" value={form.aplicacao_saude} onChange={(v) => set("aplicacao_saude", v)} />
-              <IndiceResumo label="Saúde" value={numVal(form.aplicacao_saude) / 100 || null} statusFn={statusSaude} />
-            </div>
-            <div className="space-y-2">
-              <PctInput label="Pessoal (LRF) *" value={form.gasto_pessoal} onChange={(v) => set("gasto_pessoal", v)} />
-              <IndiceResumo label="Pessoal" value={numVal(form.gasto_pessoal) / 100 || null} statusFn={statusPessoal} />
-            </div>
+            <IndiceResumo label="Índice FUNDEB" value={indiceFundeb} statusFn={statusFundeb} />
+          </div>
+
+          {/* Saúde + Pessoal compartilham RCL */}
+          <div className="space-y-3 rounded-lg border border-border p-4">
+            <h4 className="text-sm font-semibold text-card-foreground">💰 Receita Corrente Líquida (RCL)</h4>
+            <MoneyInput label="Receita Corrente Líquida *" value={form.receita_corrente_liquida} onChange={(v) => set("receita_corrente_liquida", v)} required hint="Utilizada como base para os índices de Saúde e Pessoal." />
+          </div>
+
+          <div className="space-y-3 rounded-lg border border-border p-4">
+            <h4 className="text-sm font-semibold text-card-foreground">🏥 Saúde (ASPS)</h4>
+            <MoneyInput label="Aplicação em Saúde *" value={form.aplicacao_saude} onChange={(v) => set("aplicacao_saude", v)} required />
+            <IndiceResumo label="Índice de Saúde" value={indiceSaude} statusFn={statusSaude} />
+          </div>
+
+          <div className="space-y-3 rounded-lg border border-border p-4">
+            <h4 className="text-sm font-semibold text-card-foreground">👥 Pessoal (LRF)</h4>
+            <MoneyInput label="Gasto com Pessoal *" value={form.gasto_pessoal} onChange={(v) => set("gasto_pessoal", v)} required />
+            <IndiceResumo label="Índice de Pessoal" value={indicePessoal} statusFn={statusPessoal} />
           </div>
 
           <div className="text-xs text-muted-foreground space-y-0.5">
