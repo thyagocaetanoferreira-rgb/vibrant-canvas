@@ -194,7 +194,8 @@ const DiagnosticoFormPage = () => {
   // Calculated values
   const recPrevMes = useMemo(() => calcReceitaPrevistaMes(numVal(form.receita_prevista_ano)), [form.receita_prevista_ano]);
   const totalEmpenhado = useMemo(() => calcTotalEmpenhado(numVal(form.despesa_empenhada_f1), numVal(form.despesa_empenhada_f2)), [form.despesa_empenhada_f1, form.despesa_empenhada_f2]);
-  const resFinEmpenhado = useMemo(() => calcResFinanceiroEmpenhado(numVal(form.caixa), numVal(form.despesa_nao_processada), numVal(form.consignacoes_tesouraria)), [form.caixa, form.despesa_nao_processada, form.consignacoes_tesouraria]);
+  const resFinEmpenhado = useMemo(() => calcResFinanceiroEmpenhado(numVal(form.caixa), numVal(form.consignacoes_tesouraria), numVal(form.despesa_nao_processada), numVal(form.despesa_processada), numVal(form.resto_nao_processado), numVal(form.resto_processado)), [form.caixa, form.consignacoes_tesouraria, form.despesa_nao_processada, form.despesa_processada, form.resto_nao_processado, form.resto_processado]);
+  const resFinLiquidado = useMemo(() => calcResFinanceiroLiquidado(numVal(form.caixa), numVal(form.consignacoes_tesouraria), numVal(form.despesa_processada), numVal(form.resto_processado)), [form.caixa, form.consignacoes_tesouraria, form.despesa_processada, form.resto_processado]);
 
   // Auto-calculated LRF indices
   const indiceEducacao = useMemo(() => {
