@@ -92,6 +92,7 @@ const DiagnosticoListPage = () => {
             <thead>
               <tr className="border-b border-border bg-muted/30">
                 <th className="text-left py-3 px-3 font-heading font-semibold text-card-foreground whitespace-nowrap">Mês</th>
+                <th className="text-left py-3 px-3 font-heading font-semibold text-card-foreground whitespace-nowrap">Status</th>
                 <th className="text-right py-3 px-3 font-heading font-semibold text-card-foreground whitespace-nowrap">Res. Orçamentário (Liq.)</th>
                 <th className="text-right py-3 px-3 font-heading font-semibold text-card-foreground whitespace-nowrap">Res. Financeiro (Liq.)</th>
                 <th className="text-center py-3 px-3 font-heading font-semibold text-card-foreground whitespace-nowrap">Educação</th>
