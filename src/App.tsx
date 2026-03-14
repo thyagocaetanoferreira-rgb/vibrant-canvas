@@ -58,6 +58,7 @@ const App = () => (
               <Route path="/riscos" element={<RiscosPage />} />
               <Route path="/agenda" element={<ModulePlaceholder title="Agenda" description="Calendário unificado de visitas, reuniões e diligências" icon={Calendar} />} />
               <Route path="/relatorios" element={<ModulePlaceholder title="Relatórios" description="Dashboards BI e relatórios consolidados" icon={BarChart3} />} />
+              <Route path="/relatorios/boletim-contabil" element={<BoletimContabilPage />} />
               <Route path="/visitas" element={<ModulePlaceholder title="Visitas" description="Controle de viagens e visitas aos clientes" icon={MapPin} />} />
               <Route path="/gente-gestao" element={<ModulePlaceholder title="Gente e Gestão" description="Solicitação e aprovação de férias" icon={Users} />} />
               <Route path="/portal-tcm" element={<ModulePlaceholder title="Portal Cidadão TCM" description="Consulta de cargos, contas e legislações" icon={Globe} />} />
