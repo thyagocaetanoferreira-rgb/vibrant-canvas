@@ -203,7 +203,7 @@ const FinanceCard = ({
 
 /* ──────────────── MAIN PAGE ──────────────── */
 const BoletimContabilPage = () => {
-  const { municipio, municipalitiesDisponiveis, anoExercicio } = useAppContext();
+  const { municipio, municipiosDisponiveis, anoExercicio } = useAppContext();
 
   const [clienteId, setClienteId] = useState(municipio?.clienteId ?? "");
   const [mes, setMes] = useState(String(new Date().getMonth() + 1));
