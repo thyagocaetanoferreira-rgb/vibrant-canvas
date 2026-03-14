@@ -602,10 +602,10 @@ const DiagnosticoFormPage = () => {
               <div>
                 <h4 className="font-semibold text-card-foreground mb-1">Índices LRF</h4>
                 <div className="grid grid-cols-2 gap-2">
-                  <IndiceResumo label="Educação" value={numVal(savedData.aplicacao_educacao) / 100 || null} statusFn={statusEducacao} />
-                  <IndiceResumo label="FUNDEB" value={numVal(savedData.aplicacao_fundeb_70) / 100 || null} statusFn={statusFundeb} />
-                  <IndiceResumo label="Saúde" value={numVal(savedData.aplicacao_saude) / 100 || null} statusFn={statusSaude} />
-                  <IndiceResumo label="Pessoal" value={numVal(savedData.gasto_pessoal) / 100 || null} statusFn={statusPessoal} />
+                  <IndiceResumo label="Educação" value={numVal(savedData.receita_impostos) ? numVal(savedData.aplicacao_educacao) / numVal(savedData.receita_impostos) : null} statusFn={statusEducacao} />
+                  <IndiceResumo label="FUNDEB" value={numVal(savedData.receita_fundeb) ? numVal(savedData.aplicacao_fundeb_70) / numVal(savedData.receita_fundeb) : null} statusFn={statusFundeb} />
+                  <IndiceResumo label="Saúde" value={numVal(savedData.receita_corrente_liquida) ? numVal(savedData.aplicacao_saude) / numVal(savedData.receita_corrente_liquida) : null} statusFn={statusSaude} />
+                  <IndiceResumo label="Pessoal" value={numVal(savedData.receita_corrente_liquida) ? numVal(savedData.gasto_pessoal) / numVal(savedData.receita_corrente_liquida) : null} statusFn={statusPessoal} />
                 </div>
               </div>
               <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t border-border">
