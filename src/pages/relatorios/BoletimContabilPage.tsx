@@ -214,12 +214,12 @@ const BoletimContabilPage = () => {
 
   // Load clients list
   useEffect(() => {
-    const opts: ClienteOption[] = municipalitiesDisponiveis.map((m) => ({
+    const opts: ClienteOption[] = municipiosDisponiveis.map((m) => ({
       clienteId: m.clienteId,
       municipioNome: m.municipioNome,
     }));
     setClientes(opts);
-  }, [municipalitiesDisponiveis]);
+  }, [municipiosDisponiveis]);
 
   // Sync context municipality
   useEffect(() => {
