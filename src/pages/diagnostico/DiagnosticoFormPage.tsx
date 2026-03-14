@@ -146,6 +146,39 @@ const DiagnosticoFormPage = () => {
     prefill();
   }, [form.mes_referencia, form.ano_referencia, municipio, isEdit]);
 
+  // Fetch accumulated revenue from previous months
+  const [receitaAcumuladaAnterior, setReceitaAcumuladaAnterior] = useState<number>(0);
+  const [loadingAcumulada, setLoadingAcumulada] = useState(false);
+
+  useEffect(() => {
+    if (!municipio || !form.mes_referencia || !form.ano_referencia) {
+      setReceitaAcumuladaAnterior(0);
+      return;
+    }
+    const mesNum = Number(form.mes_referencia);
+    if (mesNum <= 1) {
+      setReceitaAcumuladaAnterior(0);
+      return;
+    }
+    const fetchAcumulada = async () => {
+      setLoadingAcumulada(true);
+      const { data } = await supabase
+        .from("lancamentos_mensais")
+        .select("receita_realizada")
+        .eq("cliente_id", municipio.clienteId)
+        .eq("ano_referencia", Number(form.ano_referencia))
+        .lt("mes_referencia", mesNum);
+      
+      const total = (data || []).reduce((acc, row) => acc + numVal(row.receita_realizada), 0);
+      setReceitaAcumuladaAnterior(total);
+      setLoadingAcumulada(false);
+    };
+    fetchAcumulada();
+  }, [municipio, form.mes_referencia, form.ano_referencia]);
+
+  const receitaMesAtual = numVal(form.receita_realizada);
+  const receitaAcumuladaTotal = receitaAcumuladaAnterior + receitaMesAtual;
+
   // Calculated values
   const recPrevMes = useMemo(() => calcReceitaPrevistaMes(numVal(form.receita_prevista_ano)), [form.receita_prevista_ano]);
   const totalEmpenhado = useMemo(() => calcTotalEmpenhado(numVal(form.despesa_empenhada_f1), numVal(form.despesa_empenhada_f2)), [form.despesa_empenhada_f1, form.despesa_empenhada_f2]);
