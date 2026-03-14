@@ -146,6 +146,7 @@ export type Database = {
           observacoes: string | null
           receita_corrente_liquida: number | null
           receita_fundeb: number | null
+          receita_impostos: number | null
           receita_prevista_ano: number | null
           receita_realizada: number | null
           resto_nao_processado: number | null
@@ -186,6 +187,7 @@ export type Database = {
           observacoes?: string | null
           receita_corrente_liquida?: number | null
           receita_fundeb?: number | null
+          receita_impostos?: number | null
           receita_prevista_ano?: number | null
           receita_realizada?: number | null
           resto_nao_processado?: number | null
@@ -226,6 +228,7 @@ export type Database = {
           observacoes?: string | null
           receita_corrente_liquida?: number | null
           receita_fundeb?: number | null
+          receita_impostos?: number | null
           receita_prevista_ano?: number | null
           receita_realizada?: number | null
           resto_nao_processado?: number | null
