@@ -3,11 +3,20 @@ import { useNavigate } from "react-router-dom";
 import { useAppContext } from "@/contexts/AppContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, CheckCircle2, Clock } from "lucide-react";
 import { formatBRL, formatPct, statusEducacao, statusFundeb, statusSaude, statusPessoal, calcResFinanceiroLiquidado } from "@/lib/calculos-lrf";
 import { cn } from "@/lib/utils";
 
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+const statusIcon: Record<string, React.ReactNode> = {
+  finalizado: <CheckCircle2 className="w-4 h-4 text-success" />,
+  rascunho: <Clock className="w-4 h-4 text-warning" />,
+};
+const statusLabel: Record<string, string> = {
+  finalizado: "Finalizado",
+  rascunho: "Rascunho",
+};
 
 const indiceBadge = (s: ReturnType<typeof statusEducacao>, pct: string) => {
   const colors: Record<string, string> = {
@@ -83,6 +92,7 @@ const DiagnosticoListPage = () => {
             <thead>
               <tr className="border-b border-border bg-muted/30">
                 <th className="text-left py-3 px-3 font-heading font-semibold text-card-foreground whitespace-nowrap">Mês</th>
+                <th className="text-left py-3 px-3 font-heading font-semibold text-card-foreground whitespace-nowrap">Status</th>
                 <th className="text-right py-3 px-3 font-heading font-semibold text-card-foreground whitespace-nowrap">Res. Orçamentário (Liq.)</th>
                 <th className="text-right py-3 px-3 font-heading font-semibold text-card-foreground whitespace-nowrap">Res. Financeiro (Liq.)</th>
                 <th className="text-center py-3 px-3 font-heading font-semibold text-card-foreground whitespace-nowrap">Educação</th>
@@ -126,6 +136,14 @@ const DiagnosticoListPage = () => {
                     onClick={() => hasData && navigate(`/diagnostico/${l.id}/editar`)}
                   >
                     <td className="py-3 px-3 font-medium">{MESES[mes - 1]}</td>
+                    <td className="py-3 px-3">
+                      {hasData ? (
+                        <div className="flex items-center gap-1.5">
+                          {statusIcon[l.status]}
+                          <span className="text-xs">{statusLabel[l.status]}</span>
+                        </div>
+                      ) : "—"}
+                    </td>
                     <td className="py-3 px-3 text-right">
                       {resOrcamento !== null ? (
                         <span className={cn("font-medium", resOrcamento >= 0 ? "text-success" : "text-destructive")}>
