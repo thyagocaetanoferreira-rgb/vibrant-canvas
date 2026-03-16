@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAppContext } from "@/contexts/AppContext";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -231,14 +231,10 @@ const BoletimContabilPage = () => {
     if (!clienteId) return;
     const fetchData = async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from("lancamentos_mensais")
-        .select("*")
-        .eq("cliente_id", clienteId)
-        .eq("mes_referencia", Number(mes))
-        .eq("ano_referencia", Number(ano))
-        .maybeSingle();
-      setLancamento(data as Lancamento | null);
+      const data = await api.get<Lancamento | null>(
+        `/lancamentos?cliente_id=${clienteId}&mes=${mes}&ano=${ano}`
+      );
+      setLancamento(data);
       setLoading(false);
     };
     fetchData();

@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Pencil, ExternalLink, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -53,74 +53,48 @@ const ClientesListPage = () => {
   const [toggleDialog, setToggleDialog] = useState<Cliente | null>(null);
   const [linkedUsersCount, setLinkedUsersCount] = useState(0);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
     setLoading(true);
-    const { data: clientesData, error } = await supabase
-      .from("clientes")
-      .select("*")
-      .order("criado_em", { ascending: false });
-
-    if (error) {
-      toast({ title: "Erro ao carregar clientes", description: error.message, variant: "destructive" });
-      setLoading(false);
-      return;
-    }
-
-    // Fetch municipios for names
-    const munIds = (clientesData || []).map((c) => c.municipio_id);
-    if (munIds.length > 0) {
-      const { data: muns } = await supabase
-        .from("municipios")
-        .select("id, nome, codigo_uf")
-        .in("id", munIds);
-
-      const munMap = new Map((muns || []).map((m) => [m.id, m]));
+    try {
+      const data = await api.get<any[]>("/clientes");
       setClientes(
-        (clientesData || []).map((c) => ({
+        data.map((c) => ({
           ...c,
           tipos_servico: c.tipos_servico || [],
-          municipio_nome: munMap.get(c.municipio_id)?.nome || "—",
-          municipio_uf: munMap.get(c.municipio_id)?.codigo_uf,
+          municipio_nome: c.municipio_nome || "—",
+          municipio_uf: c.municipio_uf,
         }))
       );
-    } else {
-      setClientes([]);
+    } catch (err: any) {
+      toast({ title: "Erro ao carregar clientes", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleToggleStatus = async (cliente: Cliente) => {
-    // Check linked users
-    const { count } = await supabase
-      .from("usuarios")
-      .select("id", { count: "exact", head: true })
-      .eq("municipio_id", cliente.municipio_id);
-
-    if (!cliente.status === false && (count || 0) > 0) {
-      setLinkedUsersCount(count || 0);
-      setToggleDialog(cliente);
-      return;
+    if (cliente.status) {
+      // Activating→inactivating: check linked users
+      const { count } = await api.get<{ count: number }>(`/clientes/${cliente.id}/count-usuarios`);
+      if (count > 0) {
+        setLinkedUsersCount(count);
+        setToggleDialog(cliente);
+        return;
+      }
     }
-
     await confirmToggle(cliente);
   };
 
   const confirmToggle = async (cliente: Cliente) => {
-    const { error } = await supabase
-      .from("clientes")
-      .update({ status: !cliente.status })
-      .eq("id", cliente.id);
-
-    if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      await api.patch(`/clientes/${cliente.id}/status`, { status: !cliente.status });
       setClientes((prev) =>
         prev.map((c) => (c.id === cliente.id ? { ...c, status: !c.status } : c))
       );
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
     }
     setToggleDialog(null);
   };
@@ -147,7 +121,6 @@ const ClientesListPage = () => {
         </Button>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardContent className="pt-4">
           <div className="flex flex-wrap gap-3">
@@ -182,7 +155,6 @@ const ClientesListPage = () => {
         </CardContent>
       </Card>
 
-      {/* Table */}
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -199,9 +171,7 @@ const ClientesListPage = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    Carregando...
-                  </TableCell>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Carregando...</TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
                 <TableRow>
@@ -219,10 +189,7 @@ const ClientesListPage = () => {
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {c.tipos_servico.map((s) => (
-                          <span
-                            key={s}
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${SERVICO_COLORS[s]?.bg || "bg-muted"} ${SERVICO_COLORS[s]?.text || "text-foreground"}`}
-                          >
+                          <span key={s} className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${SERVICO_COLORS[s]?.bg || "bg-muted"} ${SERVICO_COLORS[s]?.text || "text-foreground"}`}>
                             {s}
                           </span>
                         ))}
@@ -235,28 +202,15 @@ const ClientesListPage = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => navigate(`/clientes/${c.id}/editar`)}
-                          title="Editar"
-                        >
+                        <Button variant="ghost" size="icon" onClick={() => navigate(`/clientes/${c.id}/editar`)} title="Editar">
                           <Pencil className="w-4 h-4" />
                         </Button>
                         {c.link_sistema && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => window.open(c.link_sistema!, "_blank")}
-                            title="Abrir Sistema"
-                          >
+                          <Button variant="ghost" size="icon" onClick={() => window.open(c.link_sistema!, "_blank")} title="Abrir Sistema">
                             <ExternalLink className="w-4 h-4" />
                           </Button>
                         )}
-                        <Switch
-                          checked={c.status}
-                          onCheckedChange={() => handleToggleStatus(c)}
-                        />
+                        <Switch checked={c.status} onCheckedChange={() => handleToggleStatus(c)} />
                       </div>
                     </TableCell>
                   </TableRow>
@@ -267,7 +221,6 @@ const ClientesListPage = () => {
         </CardContent>
       </Card>
 
-      {/* Dialog de confirmação ao inativar */}
       <AlertDialog open={!!toggleDialog} onOpenChange={() => setToggleDialog(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -278,9 +231,7 @@ const ClientesListPage = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => toggleDialog && confirmToggle(toggleDialog)}>
-              Confirmar
-            </AlertDialogAction>
+            <AlertDialogAction onClick={() => toggleDialog && confirmToggle(toggleDialog)}>Confirmar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

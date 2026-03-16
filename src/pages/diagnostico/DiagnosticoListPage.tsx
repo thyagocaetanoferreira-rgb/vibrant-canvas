@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppContext } from "@/contexts/AppContext";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Plus, CheckCircle2, Clock } from "lucide-react";
 import { formatBRL, formatPct, statusEducacao, statusFundeb, statusSaude, statusPessoal, calcResFinanceiroLiquidado } from "@/lib/calculos-lrf";
@@ -39,12 +39,9 @@ const DiagnosticoListPage = () => {
     if (!municipio) return;
     const fetch = async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from("lancamentos_mensais")
-        .select("*")
-        .eq("cliente_id", municipio.clienteId)
-        .eq("ano_referencia", Number(anoExercicio))
-        .order("mes_referencia");
+      const data = await api.get<any[]>(
+        `/lancamentos?cliente_id=${municipio.clienteId}&ano=${anoExercicio}`
+      );
       setLancamentos(data || []);
       setLoading(false);
     };

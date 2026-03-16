@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { useAppContext } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,11 +15,7 @@ interface UltimoLog {
 
 function formatarData(iso: string) {
   return new Date(iso).toLocaleString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
   });
 }
 
@@ -33,42 +29,21 @@ export default function SincronizacaoBalancetesCard() {
   const [anoSelecionado, setAnoSelecionado] = useState(String(anoAtual));
 
   useEffect(() => {
-    async function carregarUltimoLog() {
-      const { data } = await supabase
-        .from("tcmgo_sync_log")
-        .select("status, total_registros, finalizado_em")
-        .eq("status", "sucesso")
-        .eq("tipo", "balancetes")
-        .order("finalizado_em", { ascending: false })
-        .limit(1)
-        .single();
-      if (data) setUltimoLog(data);
-    }
-    carregarUltimoLog();
+    api.get<UltimoLog[]>("/tcmgo/sync-log?tipo=balancetes&status=sucesso&limit=1")
+      .then((data) => { if (data[0]) setUltimoLog(data[0]); })
+      .catch(() => {});
   }, []);
 
   async function handleSincronizar() {
     setCarregando(true);
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "verificar-balancetes-tcmgo",
-        {
-          body: {
-            usuario_id: usuario?.id,
-            ano_referencia: Number(anoSelecionado),
-          },
-        }
-      );
-
-      if (error) throw new Error(error.message);
-      if (!data?.sucesso) throw new Error(data?.mensagem ?? "Erro desconhecido");
-
-      toast.success(`✅ ${data.mensagem}`);
-      setUltimoLog({
-        status: "sucesso",
-        total_registros: data.total,
-        finalizado_em: new Date().toISOString(),
+      const data = await api.post<any>("/tcmgo/verificar-balancetes", {
+        usuario_id: usuario?.id,
+        ano_referencia: Number(anoSelecionado),
       });
+      if (!data?.sucesso) throw new Error(data?.mensagem ?? "Erro desconhecido");
+      toast.success(`✅ ${data.mensagem}`);
+      setUltimoLog({ status: "sucesso", total_registros: data.total, finalizado_em: new Date().toISOString() });
     } catch (erro: any) {
       toast.error(`❌ Erro: ${erro.message}`);
     } finally {
@@ -83,47 +58,30 @@ export default function SincronizacaoBalancetesCard() {
           <FileCheck className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <CardTitle className="text-base font-semibold">
-            Balancetes TCM-GO
-          </CardTitle>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Fonte: ws.tcm.go.gov.br
-          </p>
+          <CardTitle className="text-base font-semibold">Balancetes TCM-GO</CardTitle>
+          <p className="text-xs text-muted-foreground mt-0.5">Fonte: ws.tcm.go.gov.br</p>
         </div>
       </CardHeader>
-
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Verifica automaticamente se os balancetes eletrônicos de todos os
-          órgãos dos clientes ativos foram enviados ao TCM-GO. A verificação
-          cobre todos os meses do ano selecionado.
+          Verifica automaticamente se os balancetes eletrônicos de todos os órgãos dos clientes ativos foram enviados ao TCM-GO.
         </p>
-
         <p className="text-sm font-medium text-destructive bg-destructive/10 rounded-md px-3 py-2">
-          ⚠️ Pré-requisito: os municípios e órgãos do TCM-GO devem ser
-          importados antes, e os clientes devem estar vinculados ao município
-          TCM-GO.
+          ⚠️ Pré-requisito: os municípios e órgãos do TCM-GO devem ser importados antes, e os clientes devem estar vinculados ao município TCM-GO.
         </p>
-
-        {/* Year selector */}
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground">
-            Ano de referência
-          </label>
+          <label className="text-sm font-medium text-foreground">Ano de referência</label>
           <Select value={anoSelecionado} onValueChange={setAnoSelecionado}>
             <SelectTrigger>
               <SelectValue placeholder="Selecione o ano" />
             </SelectTrigger>
             <SelectContent>
               {anos.map((ano) => (
-                <SelectItem key={ano} value={String(ano)}>
-                  {ano}
-                </SelectItem>
+                <SelectItem key={ano} value={String(ano)}>{ano}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-
         {ultimoLog && (
           <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
             <div className="flex items-center gap-2 text-accent-foreground font-medium">
@@ -131,34 +89,14 @@ export default function SincronizacaoBalancetesCard() {
               Última sincronização: {formatarData(ultimoLog.finalizado_em)}
             </div>
             <div className="text-muted-foreground">
-              Total de registros:{" "}
-              <strong>{ultimoLog.total_registros} verificações</strong>
+              Total de registros: <strong>{ultimoLog.total_registros} verificações</strong>
             </div>
           </div>
         )}
-
-        <Button
-          onClick={handleSincronizar}
-          disabled={carregando}
-          className="w-full"
-        >
-          {carregando ? (
-            <>
-              <RefreshCw className="mr-2 w-4 h-4 animate-spin" />
-              Sincronizando...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="mr-2 w-4 h-4" />
-              Sincronizar Agora
-            </>
-          )}
+        <Button onClick={handleSincronizar} disabled={carregando} className="w-full">
+          {carregando ? <><RefreshCw className="mr-2 w-4 h-4 animate-spin" />Sincronizando...</> : <><RefreshCw className="mr-2 w-4 h-4" />Sincronizar Agora</>}
         </Button>
-
-        <p className="text-xs text-muted-foreground text-center">
-          A sincronização é manual. Clique no botão para buscar dados
-          atualizados.
-        </p>
+        <p className="text-xs text-muted-foreground text-center">A sincronização é manual. Clique no botão para buscar dados atualizados.</p>
       </CardContent>
     </Card>
   );

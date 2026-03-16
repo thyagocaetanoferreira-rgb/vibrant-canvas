@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAppContext } from "@/contexts/AppContext";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -99,10 +99,8 @@ const DiagnosticoFormPage = () => {
   useEffect(() => {
     if (!isEdit) return;
     const load = async () => {
-      const { data } = await supabase.from("lancamentos_mensais").select("*").eq("id", id).single();
-      if (data) {
-        setForm(data);
-      }
+      const data = await api.get<any>(`/lancamentos/${id}`);
+      if (data) setForm(data);
     };
     load();
   }, [id, isEdit]);
@@ -114,13 +112,9 @@ const DiagnosticoFormPage = () => {
       return;
     }
     const check = async () => {
-      const { data } = await supabase
-        .from("lancamentos_mensais")
-        .select("id")
-        .eq("cliente_id", municipio.clienteId)
-        .eq("mes_referencia", Number(form.mes_referencia))
-        .eq("ano_referencia", Number(form.ano_referencia))
-        .maybeSingle();
+      const data = await api.get<any>(
+        `/lancamentos?cliente_id=${municipio.clienteId}&mes=${form.mes_referencia}&ano=${form.ano_referencia}`
+      );
       setExisteAlerta(!!data);
     };
     check();
@@ -132,13 +126,9 @@ const DiagnosticoFormPage = () => {
     const prefill = async () => {
       const mesNum = Number(form.mes_referencia);
       if (mesNum <= 1) return;
-      const { data } = await supabase
-        .from("lancamentos_mensais")
-        .select("receita_prevista_ano")
-        .eq("cliente_id", municipio.clienteId)
-        .eq("ano_referencia", Number(form.ano_referencia))
-        .eq("mes_referencia", mesNum - 1)
-        .maybeSingle();
+      const data = await api.get<any>(
+        `/lancamentos?cliente_id=${municipio.clienteId}&mes=${mesNum - 1}&ano=${form.ano_referencia}`
+      ).catch(() => null);
       if (data?.receita_prevista_ano) {
         set("receita_prevista_ano", data.receita_prevista_ano);
       }
@@ -171,14 +161,9 @@ const DiagnosticoFormPage = () => {
     }
     const fetchAcumulada = async () => {
       setLoadingAcumulada(true);
-      const { data } = await supabase
-        .from("lancamentos_mensais")
-        .select("receita_realizada,despesa_empenhada_f1,despesa_empenhada_f2,despesa_liquidada,despesa_paga")
-        .eq("cliente_id", municipio.clienteId)
-        .eq("ano_referencia", Number(form.ano_referencia))
-        .lt("mes_referencia", mesNum);
-      
-      const rows = data || [];
+      const rows: any[] = await api.get<any[]>(
+        `/lancamentos?cliente_id=${municipio.clienteId}&ano=${form.ano_referencia}&mes_lt=${mesNum}`
+      ).catch(() => []);
       setReceitaAcumuladaAnterior(rows.reduce((acc, r) => acc + numVal(r.receita_realizada), 0));
       setDespEmpAnterior(rows.reduce((acc, r) => acc + numVal(r.despesa_empenhada_f1) + numVal(r.despesa_empenhada_f2), 0));
       setDespLiqAnterior(rows.reduce((acc, r) => acc + numVal(r.despesa_liquidada), 0));
@@ -290,22 +275,18 @@ const DiagnosticoFormPage = () => {
       payload[f] = v !== "" && v !== null && v !== undefined ? numVal(v) : null;
     });
 
-    let error;
-    if (isEdit) {
-      const res = await supabase.from("lancamentos_mensais").update(payload).eq("id", id);
-      error = res.error;
-    } else {
-      const res = await supabase.from("lancamentos_mensais").upsert(payload as any, {
-        onConflict: "cliente_id,mes_referencia,ano_referencia",
-      });
-      error = res.error;
-    }
-
-    setLoading(false);
-    if (error) {
-      toast.error("Erro ao salvar: " + error.message);
+    try {
+      if (isEdit) {
+        await api.put(`/lancamentos/${id}`, payload);
+      } else {
+        await api.post("/lancamentos", payload);
+      }
+    } catch (err: any) {
+      setLoading(false);
+      toast.error("Erro ao salvar: " + err.message);
       return;
     }
+    setLoading(false);
 
     setSavedData({ ...payload, status });
     setShowResumo(true);

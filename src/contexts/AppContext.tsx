@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { api, setToken, clearToken } from "@/lib/api";
 import { toast } from "sonner";
-import type { Session } from "@supabase/supabase-js";
 
 interface UsuarioLogado {
   id: string;
@@ -62,7 +60,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    clearToken();
     setUsuario(null);
     setMunicipio(null);
     setMunicipiosDisponiveis([]);
@@ -70,119 +68,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem("vh_ano_exercicio");
   };
 
-  const loadUserData = useCallback(async (session: Session | null) => {
-    if (!session?.user) {
-      setUsuario(null);
-      setMunicipio(null);
-      setMunicipiosDisponiveis([]);
+  const loadUserData = useCallback(async () => {
+    const token = localStorage.getItem("vh_token");
+    if (!token) {
       setAuthLoading(false);
       return;
     }
 
-    // Find the usuario record by auth_id
-    const { data: usr } = await supabase
-      .from("usuarios")
-      .select("id, nome, email, username, perfil, foto_url, ativo")
-      .eq("auth_id", session.user.id)
-      .maybeSingle();
+    try {
+      const data = await api.get<{
+        usuario: UsuarioLogado;
+        municipios: MunicipioAtivo[];
+      }>("/auth/me");
 
-    if (!usr) {
-      toast.error("Usuário não encontrado no sistema.");
-      await supabase.auth.signOut();
-      setAuthLoading(false);
-      return;
-    }
+      setUsuario(data.usuario);
 
-    if (!usr.ativo) {
-      toast.warning("Usuário inativo. Entre em contato com o administrador.");
-      await supabase.auth.signOut();
-      setAuthLoading(false);
-      return;
-    }
+      const municipios = data.municipios.sort((a, b) =>
+        a.municipioNome.localeCompare(b.municipioNome)
+      );
+      setMunicipiosDisponiveis(municipios);
 
-    setUsuario({
-      id: usr.id,
-      nome: usr.nome,
-      email: usr.email,
-      username: usr.username,
-      perfil: usr.perfil,
-      foto_url: usr.foto_url,
-    });
-
-    // Load municipalities: Admin sees all active clients, others see their linked ones
-    let municipios: MunicipioAtivo[] = [];
-
-    if (usr.perfil === "Administrador") {
-      const { data: clientes } = await supabase
-        .from("clientes")
-        .select("id, municipio_id, status, municipios(nome)")
-        .eq("status", true);
-
-      municipios = (clientes || []).map((c: any) => ({
-        clienteId: c.id,
-        municipioId: c.municipio_id,
-        municipioNome: c.municipios?.nome || "",
-      }));
-    } else {
-      // Get user's linked municipality IDs
-      const { data: links } = await supabase
-        .from("usuario_municipios")
-        .select("municipio_id")
-        .eq("usuario_id", usr.id);
-
-      if (links && links.length > 0) {
-        const munIds = links.map((l) => l.municipio_id);
-        // Only include municipalities that are active clients
-        const { data: clientes } = await supabase
-          .from("clientes")
-          .select("id, municipio_id, status, municipios(nome)")
-          .in("municipio_id", munIds)
-          .eq("status", true);
-
-        municipios = (clientes || []).map((c: any) => ({
-          clienteId: c.id,
-          municipioId: c.municipio_id,
-          municipioNome: c.municipios?.nome || "",
-        }));
-      }
-    }
-
-    municipios.sort((a, b) => a.municipioNome.localeCompare(b.municipioNome));
-    setMunicipiosDisponiveis(municipios);
-
-    // Restore saved municipality
-    const saved = localStorage.getItem("vh_municipio_ativo");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved) as MunicipioAtivo;
-        const found = municipios.find((m) => m.clienteId === parsed.clienteId);
-        if (found) {
-          setMunicipio(found);
-        } else if (municipios.length === 1) {
-          selecionarMunicipio(municipios[0]);
+      const saved = localStorage.getItem("vh_municipio_ativo");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved) as MunicipioAtivo;
+          const found = municipios.find((m) => m.clienteId === parsed.clienteId);
+          if (found) {
+            setMunicipio(found);
+          } else if (municipios.length === 1) {
+            selecionarMunicipio(municipios[0]);
+          }
+        } catch {
+          if (municipios.length === 1) selecionarMunicipio(municipios[0]);
         }
-      } catch {
-        if (municipios.length === 1) selecionarMunicipio(municipios[0]);
+      } else if (municipios.length === 1) {
+        selecionarMunicipio(municipios[0]);
       }
-    } else if (municipios.length === 1) {
-      selecionarMunicipio(municipios[0]);
+    } catch {
+      clearToken();
+      toast.error("Sessão expirada. Faça login novamente.");
+    } finally {
+      setAuthLoading(false);
     }
-
-    setAuthLoading(false);
   }, []);
 
   useEffect(() => {
-    // Set up listener BEFORE checking session
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      // Use setTimeout to avoid potential Supabase client deadlock
-      setTimeout(() => loadUserData(session), 0);
-    });
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      loadUserData(session);
-    });
-
-    return () => subscription.unsubscribe();
+    loadUserData();
   }, [loadUserData]);
 
   return (

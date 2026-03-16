@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Mail } from "lucide-react";
@@ -17,18 +17,15 @@ const EsqueciSenhaPage = () => {
     if (!email) return;
 
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    setLoading(false);
-
-    if (error) {
+    try {
+      await api.post("/auth/forgot-password", { email });
+      setSent(true);
+      toast.success("E-mail de recuperação enviado!");
+    } catch {
       toast.error("Erro ao enviar e-mail de recuperação.");
-      return;
+    } finally {
+      setLoading(false);
     }
-
-    setSent(true);
-    toast.success("E-mail de recuperação enviado!");
   };
 
   return (

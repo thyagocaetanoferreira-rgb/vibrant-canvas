@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { api, setToken } from "@/lib/api";
 import { useAppContext } from "@/contexts/AppContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,6 @@ const LoginPage = () => {
   const [manterConectado, setManterConectado] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && usuario) {
       navigate("/", { replace: true });
@@ -33,37 +32,15 @@ const LoginPage = () => {
 
     setLoading(true);
     try {
-      // If identifier is not an email, look up the email by username
-      let email = identifier;
-      if (!identifier.includes("@")) {
-        const { data: usuario } = await supabase
-          .from("usuarios")
-          .select("email")
-          .eq("username", identifier)
-          .maybeSingle();
-
-        if (!usuario) {
-          toast.error("E-mail ou senha incorretos.");
-          setLoading(false);
-          return;
-        }
-        email = usuario.email;
-      }
-
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password: senha,
+      const data = await api.post<{ token: string; usuario: any; municipios: any[] }>("/auth/login", {
+        identifier,
+        senha,
       });
-
-      if (error) {
-        toast.error("E-mail ou senha incorretos.");
-        setLoading(false);
-        return;
-      }
-
-      // Auth state change in AppContext will handle the rest (redirect logic)
-    } catch {
-      toast.error("Erro ao fazer login. Tente novamente.");
+      setToken(data.token);
+      // Reload page so AppContext re-initializes with the new token
+      window.location.href = "/";
+    } catch (err: any) {
+      toast.error(err.message || "E-mail ou senha incorretos.");
     } finally {
       setLoading(false);
     }
@@ -77,7 +54,6 @@ const LoginPage = () => {
           background: "linear-gradient(135deg, #033e66 0%, #008ded 50%, #00bfcf 100%)",
         }}
       >
-        {/* Decorative shapes */}
         <div className="absolute top-20 left-10 w-64 h-64 rounded-full bg-white/5" />
         <div className="absolute bottom-32 right-10 w-48 h-48 rounded-full bg-white/8" />
         <div className="absolute top-1/3 right-1/4 w-32 h-32 rounded-full bg-white/5" />
@@ -96,7 +72,6 @@ const LoginPage = () => {
       {/* Right panel - form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center bg-card p-8">
         <div className="w-full max-w-md space-y-8">
-          {/* Mobile logo */}
           <div className="lg:hidden text-center mb-8">
             <div className="text-4xl font-heading font-extrabold text-primary mb-1">VH</div>
             <div className="text-lg font-heading font-bold text-foreground">IntraService</div>

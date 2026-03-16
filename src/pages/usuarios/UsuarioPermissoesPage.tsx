@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -40,37 +40,24 @@ const UsuarioPermissoesPage = () => {
 
   const isAdmin = usuario?.perfil === "Administrador";
 
+  const loadPermissoes = async (userId: string) => {
+    const data = await api.get<Permissao[]>(`/usuarios/${userId}/permissoes`);
+    setPermissoes(data);
+  };
+
   useEffect(() => {
     if (!id) return;
     const fetch = async () => {
       setLoading(true);
-      const [{ data: user }, { data: modulos }, { data: perms }, { data: municipios }] = await Promise.all([
-        supabase.from("usuarios").select("*").eq("id", id).single(),
-        supabase.from("modulos").select("id, nome").order("ordem"),
-        supabase.from("permissoes_usuario").select("*").eq("usuario_id", id),
-        supabase.from("municipios").select("id, nome"),
+      const [user, municipios] = await Promise.all([
+        api.get<any>(`/usuarios/${id}`),
+        api.get<{ id: number; nome: string }[]>("/municipios"),
       ]);
-
       if (user) {
-        const muni = (municipios || []).find((m: any) => m.id === user.municipio_id);
+        const muni = municipios.find((m) => m.id === user.municipio_id);
         setUsuario({ ...user, municipio_nome: muni?.nome || "" });
       }
-
-      if (modulos) {
-        setPermissoes(
-          modulos.map((m: any) => {
-            const p = (perms || []).find((pp: any) => pp.modulo_id === m.id);
-            return {
-              modulo_id: m.id,
-              modulo_nome: m.nome,
-              pode_ver: p?.pode_ver || false,
-              pode_criar: p?.pode_criar || false,
-              pode_editar: p?.pode_editar || false,
-              pode_excluir: p?.pode_excluir || false,
-            };
-          })
-        );
-      }
+      await loadPermissoes(id);
       setLoading(false);
     };
     fetch();
@@ -82,11 +69,9 @@ const UsuarioPermissoesPage = () => {
       prev.map((p) => {
         if (p.modulo_id !== moduloId) return p;
         const updated = { ...p, [field]: value };
-        // If criar/editar/excluir is enabled, ver must be too
         if ((field === "pode_criar" || field === "pode_editar" || field === "pode_excluir") && value) {
           updated.pode_ver = true;
         }
-        // If ver is disabled, disable all
         if (field === "pode_ver" && !value) {
           updated.pode_criar = false;
           updated.pode_editar = false;
@@ -100,55 +85,28 @@ const UsuarioPermissoesPage = () => {
   const handleSave = async () => {
     if (!id) return;
     setSaving(true);
-
-    // Delete existing and re-insert
-    await supabase.from("permissoes_usuario").delete().eq("usuario_id", id);
-
-    const rows = permissoes.map((p) => ({
-      usuario_id: id,
-      modulo_id: p.modulo_id,
-      pode_ver: p.pode_ver,
-      pode_criar: p.pode_criar,
-      pode_editar: p.pode_editar,
-      pode_excluir: p.pode_excluir,
-    }));
-
-    const { error } = await supabase.from("permissoes_usuario").insert(rows);
-    if (error) {
-      toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      await api.put(`/usuarios/${id}/permissoes`, { permissoes });
       toast({ title: "Permissões salvas com sucesso!" });
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const handleRestore = async () => {
     if (!id || !usuario) return;
     setSaving(true);
-    await supabase.rpc("copiar_permissoes_perfil", {
-      p_usuario_id: id,
-      p_perfil: usuario.perfil as any,
-    });
-    // Reload
-    const { data: perms } = await supabase.from("permissoes_usuario").select("*").eq("usuario_id", id);
-    const { data: modulos } = await supabase.from("modulos").select("id, nome").order("ordem");
-    if (modulos) {
-      setPermissoes(
-        modulos.map((m: any) => {
-          const p = (perms || []).find((pp: any) => pp.modulo_id === m.id);
-          return {
-            modulo_id: m.id,
-            modulo_nome: m.nome,
-            pode_ver: p?.pode_ver || false,
-            pode_criar: p?.pode_criar || false,
-            pode_editar: p?.pode_editar || false,
-            pode_excluir: p?.pode_excluir || false,
-          };
-        })
-      );
+    try {
+      await api.post(`/usuarios/${id}/restaurar-permissoes`, { perfil: usuario.perfil });
+      await loadPermissoes(id);
+      toast({ title: "Permissões restauradas para o padrão do perfil!" });
+    } catch (err: any) {
+      toast({ title: "Erro ao restaurar", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
-    toast({ title: "Permissões restauradas para o padrão do perfil!" });
-    setSaving(false);
   };
 
   const getInitials = (n: string) =>
@@ -171,7 +129,6 @@ const UsuarioPermissoesPage = () => {
         <h1 className="text-2xl font-heading font-bold text-brand-blue-dark">Permissões do Usuário</h1>
       </div>
 
-      {/* Cabeçalho do usuário */}
       <Card>
         <CardContent className="flex items-center gap-4 pt-6">
           <Avatar className="w-14 h-14">
@@ -216,7 +173,6 @@ const UsuarioPermissoesPage = () => {
         </div>
       )}
 
-      {/* Tabela de permissões */}
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -234,32 +190,16 @@ const UsuarioPermissoesPage = () => {
                 <TableRow key={p.modulo_id}>
                   <TableCell className="font-medium">{p.modulo_nome}</TableCell>
                   <TableCell className="text-center">
-                    <Checkbox
-                      checked={isAdmin ? true : p.pode_ver}
-                      disabled={isAdmin}
-                      onCheckedChange={(v) => updatePermissao(p.modulo_id, "pode_ver", !!v)}
-                    />
+                    <Checkbox checked={isAdmin ? true : p.pode_ver} disabled={isAdmin} onCheckedChange={(v) => updatePermissao(p.modulo_id, "pode_ver", !!v)} />
                   </TableCell>
                   <TableCell className="text-center">
-                    <Checkbox
-                      checked={isAdmin ? true : p.pode_criar}
-                      disabled={isAdmin}
-                      onCheckedChange={(v) => updatePermissao(p.modulo_id, "pode_criar", !!v)}
-                    />
+                    <Checkbox checked={isAdmin ? true : p.pode_criar} disabled={isAdmin} onCheckedChange={(v) => updatePermissao(p.modulo_id, "pode_criar", !!v)} />
                   </TableCell>
                   <TableCell className="text-center">
-                    <Checkbox
-                      checked={isAdmin ? true : p.pode_editar}
-                      disabled={isAdmin}
-                      onCheckedChange={(v) => updatePermissao(p.modulo_id, "pode_editar", !!v)}
-                    />
+                    <Checkbox checked={isAdmin ? true : p.pode_editar} disabled={isAdmin} onCheckedChange={(v) => updatePermissao(p.modulo_id, "pode_editar", !!v)} />
                   </TableCell>
                   <TableCell className="text-center bg-destructive/5">
-                    <Checkbox
-                      checked={isAdmin ? true : p.pode_excluir}
-                      disabled={isAdmin}
-                      onCheckedChange={(v) => updatePermissao(p.modulo_id, "pode_excluir", !!v)}
-                    />
+                    <Checkbox checked={isAdmin ? true : p.pode_excluir} disabled={isAdmin} onCheckedChange={(v) => updatePermissao(p.modulo_id, "pode_excluir", !!v)} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -268,11 +208,8 @@ const UsuarioPermissoesPage = () => {
         </CardContent>
       </Card>
 
-      {/* Botões */}
       <div className="flex gap-3 justify-end pb-6">
-        <Button variant="outline" onClick={() => navigate("/usuarios")}>
-          Cancelar
-        </Button>
+        <Button variant="outline" onClick={() => navigate("/usuarios")}>Cancelar</Button>
         <Button onClick={handleSave} disabled={saving || isAdmin} className="bg-primary hover:bg-primary/90">
           {saving ? "Salvando..." : "Salvar Permissões"}
         </Button>

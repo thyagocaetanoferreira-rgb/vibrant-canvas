@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Eye, EyeOff, Check, X, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -65,24 +64,11 @@ const UsuarioFormPage = () => {
 
   useEffect(() => {
     const fetchMunicipiosClientes = async () => {
-      // Buscar apenas municípios que são clientes da VH (independente do status)
-      const { data: clientes } = await supabase
-        .from("clientes")
-        .select("municipio_id");
-
-      if (!clientes || clientes.length === 0) {
-        setMunicipios([]);
-        return;
-      }
-
-      const munIds = clientes.map((c) => c.municipio_id);
-      const { data: muns } = await supabase
-        .from("municipios")
-        .select("id, nome")
-        .in("id", munIds)
-        .order("nome");
-
-      setMunicipios(muns || []);
+      const clientes = await api.get<{ municipio_id: number }[]>("/clientes");
+      if (!clientes || clientes.length === 0) { setMunicipios([]); return; }
+      const munIds = clientes.map((c) => c.municipio_id).join(",");
+      const muns = await api.get<{ id: number; nome: string }[]>(`/municipios?ids=${munIds}`);
+      setMunicipios(muns);
     };
     fetchMunicipiosClientes();
   }, []);
@@ -90,7 +76,7 @@ const UsuarioFormPage = () => {
   useEffect(() => {
     if (isEdit && id) {
       const fetchUsuario = async () => {
-        const { data } = await supabase.from("usuarios").select("*").eq("id", id).single();
+        const data = await api.get<any>(`/usuarios/${id}`);
         if (data) {
           setNome(data.nome);
           setUsername(data.username);
@@ -102,13 +88,9 @@ const UsuarioFormPage = () => {
           setAtivo(data.ativo);
           setFotoUrl(data.foto_url);
 
-          // Load additional municipalities
-          const { data: extraMunicipios } = await supabase
-            .from("usuario_municipios")
-            .select("municipio_id")
-            .eq("usuario_id", id);
+          const extraMunicipios = await api.get<{ municipio_id: number }[]>(`/usuarios/${id}/municipios`);
           if (extraMunicipios && extraMunicipios.length > 0) {
-            setMunicipioIds(extraMunicipios.map((m: any) => m.municipio_id));
+            setMunicipioIds(extraMunicipios.map((m) => m.municipio_id));
           } else {
             setMunicipioIds(data.municipio_id ? [data.municipio_id] : []);
           }
@@ -119,31 +101,25 @@ const UsuarioFormPage = () => {
   }, [id, isEdit]);
 
   useEffect(() => {
-    if (!perfil) {
-      setPermissoesPerfil([]);
-      return;
-    }
+    if (!perfil) { setPermissoesPerfil([]); return; }
     const fetchPermissoes = async () => {
-      const { data: modulos } = await supabase.from("modulos").select("id, nome").order("ordem");
-      const { data: perms } = await supabase
-        .from("permissoes_perfil")
-        .select("*")
-        .eq("perfil", perfil as "Administrador" | "Auxiliar" | "Comercial" | "Coordenador" | "Juridico" | "Suporte");
-      if (modulos && perms) {
-        setPermissoesPerfil(
-          modulos.map((m: any) => {
-            const p = perms.find((pp: any) => pp.modulo_id === m.id);
-            return {
-              modulo_id: m.id,
-              modulo_nome: m.nome,
-              pode_ver: p?.pode_ver || false,
-              pode_criar: p?.pode_criar || false,
-              pode_editar: p?.pode_editar || false,
-              pode_excluir: p?.pode_excluir || false,
-            };
-          })
-        );
-      }
+      const [modulos, perms] = await Promise.all([
+        api.get<{ id: number; nome: string }[]>("/municipios/modulos"),
+        api.get<any[]>(`/municipios/permissoes-perfil/${perfil}`),
+      ]);
+      setPermissoesPerfil(
+        modulos.map((m) => {
+          const p = perms.find((pp) => pp.modulo_id === m.id);
+          return {
+            modulo_id: m.id,
+            modulo_nome: m.nome,
+            pode_ver: p?.pode_ver || false,
+            pode_criar: p?.pode_criar || false,
+            pode_editar: p?.pode_editar || false,
+            pode_excluir: p?.pode_excluir || false,
+          };
+        })
+      );
     };
     fetchPermissoes();
   }, [perfil]);
@@ -199,108 +175,52 @@ const UsuarioFormPage = () => {
 
     let uploadedFotoUrl = fotoUrl;
     if (fotoFile) {
-      const ext = fotoFile.name.split(".").pop();
-      const path = `usuarios/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("imports").upload(path, fotoFile);
-      if (!uploadError) {
-        const { data: urlData } = supabase.storage.from("imports").getPublicUrl(path);
-        uploadedFotoUrl = urlData.publicUrl;
+      try {
+        const { url } = await api.uploadFoto(fotoFile);
+        uploadedFotoUrl = url;
+      } catch {
+        // keep original fotoUrl
       }
     }
 
     const primaryMunicipioId = isMultiMunicipio ? (municipioIds[0] || 0) : parseInt(municipioId);
 
-    const userData = {
+    const userData: any = {
       nome,
       username,
       email,
       telefone: telefone || null,
-      perfil: perfil as any,
+      perfil,
       municipio_id: primaryMunicipioId,
       ativo,
       foto_url: uploadedFotoUrl,
     };
+    if (senha) userData.senha = senha;
 
-    const saveMultiMunicipios = async (userId: string) => {
-      // Delete old entries
-      await supabase.from("usuario_municipios").delete().eq("usuario_id", userId);
-      // Insert new if multi-municipio profile
-      if (isMultiMunicipio && municipioIds.length > 0) {
-        await supabase.from("usuario_municipios").insert(
-          municipioIds.map((mid) => ({ usuario_id: userId, municipio_id: mid }))
-        );
-      }
-    };
-
-    if (isEdit && id) {
-      const { error } = await supabase.from("usuarios").update(userData).eq("id", id);
-      if (error) {
-        toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
-        setSaving(false);
-        return;
-      }
-      await saveMultiMunicipios(id);
-      if (perfil !== perfilOriginal) {
-        await supabase.rpc("copiar_permissoes_perfil", {
-          p_usuario_id: id,
-          p_perfil: perfil as any,
+    try {
+      if (isEdit && id) {
+        await api.put(`/usuarios/${id}`, userData);
+        await api.put(`/usuarios/${id}/municipios`, {
+          municipio_ids: isMultiMunicipio ? municipioIds : [],
         });
-      }
-
-      // Update auth password if changed
-      if (senha) {
-        const { data: usr } = await supabase.from("usuarios").select("auth_id").eq("id", id).single();
-        if (usr?.auth_id) {
-          const { data: authRes, error: authErr } = await supabase.functions.invoke("manage-auth-user", {
-            body: { action: "update_password", auth_id: usr.auth_id, password: senha },
-          });
-          if (authErr || authRes?.error) {
-            toast({ title: "Usuário salvo, mas erro ao atualizar senha de login", description: authRes?.error || authErr?.message, variant: "destructive" });
-          }
-        } else {
-          // User exists but has no auth record — create one
-          const { data: authRes, error: authErr } = await supabase.functions.invoke("manage-auth-user", {
-            body: { action: "create", email, password: senha, usuario_id: id },
-          });
-          if (authErr || authRes?.error) {
-            toast({ title: "Usuário salvo, mas erro ao criar login", description: authRes?.error || authErr?.message, variant: "destructive" });
-          }
+        if (perfil !== perfilOriginal) {
+          await api.post(`/usuarios/${id}/restaurar-permissoes`, { perfil });
         }
+        toast({ title: "Usuário atualizado com sucesso!" });
+      } else {
+        const newUser = await api.post<{ id: string }>("/usuarios", userData);
+        await api.put(`/usuarios/${newUser.id}/municipios`, {
+          municipio_ids: isMultiMunicipio ? municipioIds : [],
+        });
+        await api.post(`/usuarios/${newUser.id}/restaurar-permissoes`, { perfil });
+        toast({ title: "Usuário criado com sucesso!" });
       }
-
-      toast({ title: "Usuário atualizado com sucesso!" });
-    } else {
-      if (!senha) {
-        toast({ title: "Senha é obrigatória para novo usuário", variant: "destructive" });
-        setSaving(false);
-        return;
-      }
-
-      const { data: newUser, error } = await supabase.from("usuarios").insert(userData).select().single();
-      if (error) {
-        toast({ title: "Erro ao criar", description: error.message, variant: "destructive" });
-        setSaving(false);
-        return;
-      }
-      await saveMultiMunicipios(newUser.id);
-      await supabase.rpc("copiar_permissoes_perfil", {
-        p_usuario_id: newUser.id,
-        p_perfil: perfil as any,
-      });
-
-      // Create auth user and link auth_id
-      const { data: authRes, error: authErr } = await supabase.functions.invoke("manage-auth-user", {
-        body: { action: "create", email, password: senha, usuario_id: newUser.id },
-      });
-      if (authErr || authRes?.error) {
-        toast({ title: "Usuário criado, mas erro ao criar login", description: authRes?.error || authErr?.message, variant: "destructive" });
-      }
-
-      toast({ title: "Usuário criado com sucesso!" });
+      navigate("/usuarios");
+    } catch (err: any) {
+      toast({ title: "Erro ao salvar", description: err.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
-    navigate("/usuarios");
   };
 
   const handleFotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -338,39 +258,25 @@ const UsuarioFormPage = () => {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Nome */}
             <div className="space-y-2">
               <Label htmlFor="nome">Nome *</Label>
               <Input id="nome" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome completo" />
               {errors.nome && <p className="text-sm text-destructive">{errors.nome}</p>}
             </div>
-
-            {/* Username */}
             <div className="space-y-2">
               <Label htmlFor="username">Usuário *</Label>
               <Input id="username" value={username} onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))} placeholder="nome_usuario" />
               {errors.username && <p className="text-sm text-destructive">{errors.username}</p>}
             </div>
-
-            {/* Email */}
             <div className="space-y-2">
               <Label htmlFor="email">E-mail *</Label>
               <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="usuario@email.com" />
               {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
             </div>
-
-            {/* Telefone */}
             <div className="space-y-2">
               <Label htmlFor="telefone">Telefone</Label>
-              <Input
-                id="telefone"
-                value={telefone}
-                onChange={(e) => setTelefone(formatTelefone(e.target.value))}
-                placeholder="(99) 99999-9999"
-              />
+              <Input id="telefone" value={telefone} onChange={(e) => setTelefone(formatTelefone(e.target.value))} placeholder="(99) 99999-9999" />
             </div>
-
-            {/* Senha */}
             <div className="space-y-2">
               <Label htmlFor="senha">Senha {!isEdit && "*"}</Label>
               <div className="relative">
@@ -381,18 +287,12 @@ const UsuarioFormPage = () => {
                   onChange={(e) => setSenha(e.target.value)}
                   placeholder={isEdit ? "Deixe vazio para manter" : "Mínimo 8 caracteres"}
                 />
-                <button
-                  type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowSenha(!showSenha)}
-                >
+                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowSenha(!showSenha)}>
                   {showSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
               {errors.senha && <p className="text-sm text-destructive">{errors.senha}</p>}
             </div>
-
-            {/* Confirmar Senha */}
             <div className="space-y-2">
               <Label htmlFor="senhaConfirm">Confirme a Senha {!isEdit && "*"}</Label>
               <div className="relative">
@@ -403,11 +303,7 @@ const UsuarioFormPage = () => {
                   onChange={(e) => setSenhaConfirm(e.target.value)}
                   placeholder="Repita a senha"
                 />
-                <button
-                  type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowSenhaConfirm(!showSenhaConfirm)}
-                >
+                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowSenhaConfirm(!showSenhaConfirm)}>
                   {showSenhaConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
@@ -415,7 +311,6 @@ const UsuarioFormPage = () => {
             </div>
           </div>
 
-          {/* Foto */}
           <div className="space-y-2">
             <Label>Foto</Label>
             <div className="flex items-center gap-4">
@@ -426,12 +321,7 @@ const UsuarioFormPage = () => {
                 </AvatarFallback>
               </Avatar>
               <div>
-                <Input
-                  type="file"
-                  accept="image/png,image/jpeg"
-                  onChange={handleFotoChange}
-                  className="w-auto"
-                />
+                <Input type="file" accept="image/png,image/jpeg" onChange={handleFotoChange} className="w-auto" />
                 <p className="text-xs text-muted-foreground mt-1">PNG ou JPG, até 2MB</p>
               </div>
             </div>
@@ -439,7 +329,6 @@ const UsuarioFormPage = () => {
         </CardContent>
       </Card>
 
-      {/* Perfil */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Perfil *</CardTitle>
@@ -453,9 +342,7 @@ const UsuarioFormPage = () => {
                 type="button"
                 onClick={() => handlePerfilChange(p.value)}
                 className={`p-4 rounded-lg border-2 text-left transition-all ${
-                  perfil === p.value
-                    ? "border-primary bg-primary/5 shadow-md"
-                    : "border-border hover:border-primary/40"
+                  perfil === p.value ? "border-primary bg-primary/5 shadow-md" : "border-border hover:border-primary/40"
                 }`}
               >
                 <p className="font-semibold text-sm">{p.label}</p>
@@ -464,7 +351,6 @@ const UsuarioFormPage = () => {
             ))}
           </div>
 
-          {/* Preview de permissões do perfil */}
           {permissoesPerfil.length > 0 && (
             <div className="mt-6">
               <p className="text-sm font-medium text-muted-foreground mb-3">
@@ -486,7 +372,6 @@ const UsuarioFormPage = () => {
         </CardContent>
       </Card>
 
-      {/* Município */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">{isMultiMunicipio ? "Municípios *" : "Município *"}</CardTitle>
@@ -520,24 +405,18 @@ const UsuarioFormPage = () => {
         </CardContent>
       </Card>
 
-      {/* Configurações */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Configurações</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3">
-            <Switch
-              checked={ativo}
-              onCheckedChange={setAtivo}
-              className="data-[state=checked]:bg-success data-[state=unchecked]:bg-destructive"
-            />
+            <Switch checked={ativo} onCheckedChange={setAtivo} className="data-[state=checked]:bg-success data-[state=unchecked]:bg-destructive" />
             <Label>{ativo ? "Ativo" : "Inativo"}</Label>
           </div>
         </CardContent>
       </Card>
 
-      {/* Botões */}
       <div className="flex gap-3 justify-end pb-6">
         <AlertDialog>
           <AlertDialogTrigger asChild>
@@ -559,7 +438,6 @@ const UsuarioFormPage = () => {
         </Button>
       </div>
 
-      {/* Alert de troca de perfil */}
       <AlertDialog open={showPerfilChangeAlert} onOpenChange={setShowPerfilChangeAlert}>
         <AlertDialogContent>
           <AlertDialogHeader>

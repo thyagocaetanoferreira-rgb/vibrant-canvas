@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import * as XLSX from "xlsx";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
@@ -103,25 +103,16 @@ export default function ImportarLancamentosPage() {
       const batchNum = Math.floor(i / BATCH_SIZE) + 1;
 
       try {
-        const { data, error } = await supabase.functions.invoke("importar-lancamentos", {
-          body: { rows: batch },
-        });
-
-        if (error) {
-          allErrors.push(`Lote ${batchNum}: ${error.message}`);
-        } else if (data) {
-          totalInserted += data.total || 0;
-          totalSkipped += data.ignorados || 0;
-          if (data.municipios_sem_cliente) {
-            data.municipios_sem_cliente.forEach((m: string) => allSkippedMunicipios.add(m));
-          }
-          if (data.erros?.length) {
-            allErrors.push(...data.erros.map((e: string) => `Lote ${batchNum}: ${e}`));
-          }
+        const data = await api.post<any>("/lancamentos/importar", { rows: batch });
+        totalInserted += data.total || 0;
+        totalSkipped += data.ignorados || 0;
+        if (data.municipios_sem_cliente) {
+          data.municipios_sem_cliente.forEach((m: string) => allSkippedMunicipios.add(m));
         }
-      } catch (err: any) {
-        allErrors.push(`Lote ${batchNum}: ${err.message}`);
-      }
+        if (data.erros?.length) {
+          allErrors.push(...data.erros.map((e: string) => `Lote ${batchNum}: ${e}`));
+        }
+      } catch (err: any) { allErrors.push(`Lote ${batchNum}: ${err.message}`); }
 
       setProgress(Math.round((batchNum / totalBatches) * 100));
     }

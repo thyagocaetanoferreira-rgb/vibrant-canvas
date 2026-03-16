@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Eye, EyeOff } from "lucide-react";
@@ -12,19 +12,16 @@ const ResetPasswordPage = () => {
   const [confirm, setConfirm] = useState("");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [valid, setValid] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check if we have a recovery session
-    const hash = window.location.hash;
-    if (hash.includes("type=recovery")) {
-      setValid(true);
+    const params = new URLSearchParams(window.location.search);
+    const t = params.get("token");
+    if (!t) {
+      toast.error("Link de recuperação inválido.");
+      navigate("/login");
     } else {
-      // Also check if user has an active session from recovery
-      supabase.auth.getSession().then(({ data }) => {
-        if (data.session) setValid(true);
-        else navigate("/login");
-      });
+      setToken(t);
     }
   }, [navigate]);
 
@@ -40,19 +37,18 @@ const ResetPasswordPage = () => {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
-    setLoading(false);
-
-    if (error) {
-      toast.error("Erro ao redefinir senha.");
-      return;
+    try {
+      await api.post("/auth/reset-password", { token, password });
+      toast.success("Senha redefinida com sucesso!");
+      navigate("/login");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao redefinir senha.");
+    } finally {
+      setLoading(false);
     }
-
-    toast.success("Senha redefinida com sucesso!");
-    navigate("/login");
   };
 
-  if (!valid) return null;
+  if (!token) return null;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-card p-8">

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -39,14 +39,14 @@ const UsuariosListPage = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    const [{ data: users }, { data: munis }] = await Promise.all([
-      supabase.from("usuarios").select("*").order("nome"),
-      supabase.from("municipios").select("id, nome").order("nome"),
+    const [users, munis] = await Promise.all([
+      api.get<Usuario[]>("/usuarios"),
+      api.get<{ id: number; nome: string }[]>("/municipios"),
     ]);
-    setMunicipios(munis || []);
-    const usersWithMunicipio = (users || []).map((u: any) => ({
+    setMunicipios(munis);
+    const usersWithMunicipio = users.map((u) => ({
       ...u,
-      municipio_nome: (munis || []).find((m: any) => m.id === u.municipio_id)?.nome || "",
+      municipio_nome: munis.find((m) => m.id === u.municipio_id)?.nome || "",
     }));
     setUsuarios(usersWithMunicipio);
     setLoading(false);
@@ -57,16 +57,13 @@ const UsuariosListPage = () => {
   }, []);
 
   const toggleAtivo = async (usuario: Usuario) => {
-    const { error } = await supabase
-      .from("usuarios")
-      .update({ ativo: !usuario.ativo })
-      .eq("id", usuario.id);
-    if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
-    } else {
+    try {
+      await api.patch(`/usuarios/${usuario.id}/ativo`, { ativo: !usuario.ativo });
       setUsuarios((prev) =>
         prev.map((u) => (u.id === usuario.id ? { ...u, ativo: !u.ativo } : u))
       );
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
     }
   };
 
@@ -94,7 +91,6 @@ const UsuariosListPage = () => {
         </Button>
       </div>
 
-      {/* Filtros */}
       <div className="flex flex-wrap gap-3 items-end">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -139,7 +135,6 @@ const UsuariosListPage = () => {
         </Select>
       </div>
 
-      {/* Tabela */}
       <div className="bg-card rounded-lg border shadow-sm">
         <Table>
           <TableHeader>
