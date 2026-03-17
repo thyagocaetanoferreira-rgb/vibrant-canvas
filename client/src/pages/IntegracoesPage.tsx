@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RefreshCw, CheckCircle, Building2, Landmark, Search } from "lucide-react";
 import SincronizacaoPpaLoaCard from "@/components/integracoes/SincronizacaoPpaLoaCard";
 import SincronizacaoBalancetesCard from "@/components/integracoes/SincronizacaoBalancetesCard";
+import SiconfiCaucCard from "@/components/integracoes/SiconfiCaucCard";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -214,24 +215,37 @@ function SincronizacaoOrgaosCard() {
 
 export default function IntegracoesPage() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-heading font-bold text-foreground">Integrações</h1>
         <p className="text-muted-foreground mt-1">Conecte-se a APIs externas para importar dados para o sistema.</p>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        <SincronizacaoCard
-          titulo="Municípios TCM-GO"
-          descricao="Importa a lista oficial de municípios do Tribunal de Contas de Goiás via API pública."
-          fonte="ws.tcm.go.gov.br"
-          icone={Building2}
-          endpoint="/tcmgo/sincronizar-municipios"
-          tipoLog="municipios"
-          labelRegistros="municípios"
-        />
-        <SincronizacaoOrgaosCard />
-        <SincronizacaoBalancetesCard />
-        <SincronizacaoPpaLoaCard />
+
+      {/* TCM-GO */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">TCM-GO</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <SincronizacaoCard
+            titulo="Municípios TCM-GO"
+            descricao="Importa a lista oficial de municípios do Tribunal de Contas de Goiás via API pública."
+            fonte="ws.tcm.go.gov.br"
+            icone={Building2}
+            endpoint="/tcmgo/sincronizar-municipios"
+            tipoLog="municipios"
+            labelRegistros="municípios"
+          />
+          <SincronizacaoOrgaosCard />
+          <SincronizacaoBalancetesCard />
+          <SincronizacaoPpaLoaCard />
+        </div>
+      </div>
+
+      {/* SICONFI */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">SICONFI</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          <SiconfiCaucCard />
+        </div>
       </div>
     </div>
   );

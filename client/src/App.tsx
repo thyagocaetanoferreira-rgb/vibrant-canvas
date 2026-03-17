@@ -27,9 +27,58 @@ import ClientesListPage from "@/pages/clientes/ClientesListPage";
 import ClienteFormPage from "@/pages/clientes/ClienteFormPage";
 import ImportarLancamentosPage from "@/pages/ImportarLancamentosPage";
 import BoletimContabilPage from "@/pages/relatorios/BoletimContabilPage";
+import CaucMunicipioPage from "@/pages/relatorios/CaucMunicipioPage";
+import CaucGeralPage from "@/pages/relatorios/CaucGeralPage";
 import { Calendar, BarChart3, MapPin, Users, Globe, CreditCard, FileText, Bell, Settings } from "lucide-react";
 
+import { useNavigate } from "react-router-dom";
+
 const queryClient = new QueryClient();
+
+function RelatoriosHubPage() {
+  const nav = useNavigate();
+  const relatorios = [
+    {
+      titulo: "Painel CAUC",
+      descricao: "Situação cadastral, fiscal e legal do município para transferências voluntárias da União.",
+      rota: "/relatorios/cauc",
+      icone: "🛡️",
+    },
+    {
+      titulo: "Boletim Contábil",
+      descricao: "Indicadores da Lei de Responsabilidade Fiscal e execução orçamentária mensal.",
+      rota: "/relatorios/boletim-contabil",
+      icone: "📊",
+    },
+    {
+      titulo: "CAUC Geral",
+      descricao: "Matriz de situação CAUC de todos os municípios clientes ativos.",
+      rota: "/relatorios/cauc-geral",
+      icone: "🗺️",
+    },
+  ];
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-heading font-bold text-primary">Relatórios</h1>
+        <p className="text-muted-foreground mt-1">Dashboards e relatórios consolidados do município.</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {relatorios.map((r) => (
+          <button
+            key={r.rota}
+            onClick={() => nav(r.rota)}
+            className="text-left rounded-xl border bg-card p-5 hover:shadow-md hover:border-primary/40 transition-all group"
+          >
+            <div className="text-3xl mb-3">{r.icone}</div>
+            <div className="font-semibold text-foreground group-hover:text-primary transition-colors">{r.titulo}</div>
+            <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{r.descricao}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -57,8 +106,10 @@ const App = () => (
               <Route path="/juridico" element={<JuridicoPage />} />
               <Route path="/riscos" element={<RiscosPage />} />
               <Route path="/agenda" element={<ModulePlaceholder title="Agenda" description="Calendário unificado de visitas, reuniões e diligências" icon={Calendar} />} />
-              <Route path="/relatorios" element={<ModulePlaceholder title="Relatórios" description="Dashboards BI e relatórios consolidados" icon={BarChart3} />} />
+              <Route path="/relatorios" element={<RelatoriosHubPage />} />
               <Route path="/relatorios/boletim-contabil" element={<BoletimContabilPage />} />
+              <Route path="/relatorios/cauc" element={<CaucMunicipioPage />} />
+              <Route path="/relatorios/cauc-geral" element={<CaucGeralPage />} />
               <Route path="/visitas" element={<ModulePlaceholder title="Visitas" description="Controle de viagens e visitas aos clientes" icon={MapPin} />} />
               <Route path="/gente-gestao" element={<ModulePlaceholder title="Gente e Gestão" description="Solicitação e aprovação de férias" icon={Users} />} />
               <Route path="/portal-tcm" element={<ModulePlaceholder title="Portal Cidadão TCM" description="Consulta de cargos, contas e legislações" icon={Globe} />} />

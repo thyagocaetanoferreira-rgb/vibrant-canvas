@@ -3,12 +3,12 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY client/package*.json ./
 RUN npm install
 
-COPY . .
+COPY client/ .
 
-# ARGs are passed at build time (docker-compose build args)
+# ARGs são passados em tempo de build (docker-compose build args)
 ARG VITE_API_URL=/api
 ENV VITE_API_URL=$VITE_API_URL
 

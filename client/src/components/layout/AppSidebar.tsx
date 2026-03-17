@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Send, ListTodo, Scale, ShieldAlert,
   MapPin, Users, FileText, Bell, Settings, Calendar,
   BarChart3, Globe, CreditCard, ChevronLeft, ChevronRight, Building2,
-  ChevronDown, Upload,
+  ChevronDown, Upload, ShieldCheck,
 } from "lucide-react";
 
 interface NavItem {
@@ -42,6 +42,8 @@ const navEntries: NavEntry[] = [
     icon: BarChart3,
     children: [
       { label: "Boletim Contábil", icon: FileText, path: "/relatorios/boletim-contabil" },
+      { label: "CAUC", icon: ShieldCheck, path: "/relatorios/cauc" },
+      { label: "CAUC Geral", icon: ShieldCheck, path: "/relatorios/cauc-geral" },
     ],
   },
   { label: "Jurídico", icon: Scale, path: "/juridico" },

@@ -25,7 +25,10 @@ function xorDecipher(encoded: string, key: string): string {
 // GET /api/clientes
 router.get("/", async (_req: AuthRequest, res: Response) => {
   const { rows } = await db.query(
-    `SELECT c.*, m.nome AS municipio_nome, m.codigo_uf AS municipio_uf
+    `SELECT c.id, c.municipio_id, c.tipos_servico::text[] AS tipos_servico, c.status,
+            c.link_sistema, c.login_sistema, c.senha_sistema, c.criado_por, c.criado_em,
+            c.atualizado_em, c.municipio_tcmgo_id,
+            m.nome AS municipio_nome, m.codigo_uf AS municipio_uf
      FROM clientes c
      LEFT JOIN municipios m ON m.id = c.municipio_id
      ORDER BY c.criado_em DESC`
@@ -36,7 +39,10 @@ router.get("/", async (_req: AuthRequest, res: Response) => {
 // GET /api/clientes/:id
 router.get("/:id", async (req: AuthRequest, res: Response) => {
   const { rows } = await db.query(
-    `SELECT c.*, m.nome AS municipio_nome, m.codigo_uf, m.codigo_ibge
+    `SELECT c.id, c.municipio_id, c.tipos_servico::text[] AS tipos_servico, c.status,
+            c.link_sistema, c.login_sistema, c.senha_sistema, c.criado_por, c.criado_em,
+            c.atualizado_em, c.municipio_tcmgo_id,
+            m.nome AS municipio_nome, m.codigo_uf, m.codigo_ibge
      FROM clientes c LEFT JOIN municipios m ON m.id = c.municipio_id
      WHERE c.id = $1`,
     [req.params.id]

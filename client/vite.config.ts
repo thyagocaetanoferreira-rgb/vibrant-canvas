@@ -5,6 +5,8 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  // Lê arquivos .env da raiz do monorepo (um nível acima de client/)
+  envDir: "..",
   server: {
     host: "::",
     port: 8080,
