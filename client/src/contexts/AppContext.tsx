@@ -15,6 +15,7 @@ export interface MunicipioAtivo {
   clienteId: string;
   municipioId: number;
   municipioNome: string;
+  municipioTcmgoId: number | null;
 }
 
 interface AppContextType {

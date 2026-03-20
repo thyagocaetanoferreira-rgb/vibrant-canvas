@@ -11,6 +11,8 @@ import lancamentosRouter from "./routes/lancamentos";
 import tcmgoRouter from "./routes/tcmgo";
 import uploadRouter from "./routes/upload";
 import siconfiRouter, { importarCauc } from "./routes/siconfi";
+import importacaoRouter from "./routes/importacao";
+import pbiRouter from "./routes/pbi";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -30,6 +32,8 @@ app.use("/api/clientes", clientesRouter);
 app.use("/api/municipios", municipiosRouter);
 app.use("/api/lancamentos", lancamentosRouter);
 app.use("/api/tcmgo", tcmgoRouter);
+app.use("/api/tcmgo/importacao", importacaoRouter);
+app.use("/api/tcmgo/pbi", pbiRouter);
 app.use("/api/upload", uploadRouter);
 app.use("/api/siconfi", siconfiRouter);
 

@@ -21,7 +21,8 @@ async function loadMunicipios(usuarioId: string, perfil: string) {
 
   if (perfil === "Administrador") {
     const { rows: r } = await db.query(
-      `SELECT c.id AS "clienteId", c.municipio_id AS "municipioId", m.nome AS "municipioNome"
+      `SELECT c.id AS "clienteId", c.municipio_id AS "municipioId", m.nome AS "municipioNome",
+              c.municipio_tcmgo_id AS "municipioTcmgoId"
        FROM clientes c
        JOIN municipios m ON m.id = c.municipio_id
        WHERE c.status = true
@@ -30,7 +31,8 @@ async function loadMunicipios(usuarioId: string, perfil: string) {
     rows = r;
   } else {
     const { rows: r } = await db.query(
-      `SELECT c.id AS "clienteId", c.municipio_id AS "municipioId", m.nome AS "municipioNome"
+      `SELECT c.id AS "clienteId", c.municipio_id AS "municipioId", m.nome AS "municipioNome",
+              c.municipio_tcmgo_id AS "municipioTcmgoId"
        FROM usuario_municipios um
        JOIN clientes c ON c.municipio_id = um.municipio_id AND c.status = true
        JOIN municipios m ON m.id = c.municipio_id

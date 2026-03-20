@@ -59,6 +59,7 @@ const navEntries: NavEntry[] = [
     icon: Globe,
     children: [
       { label: "TCM-GO", icon: Globe, path: "/integracoes" },
+      { label: "Balancetes", icon: FileText, path: "/integracoes/balancetes" },
       { label: "Importar Lançamentos", icon: Upload, path: "/importar-lancamentos" },
     ],
   },
