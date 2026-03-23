@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Send, ListTodo, Scale, ShieldAlert,
   MapPin, Users, FileText, Bell, Settings, Calendar,
   BarChart3, Globe, CreditCard, ChevronLeft, ChevronRight, Building2,
-  ChevronDown, Upload, ShieldCheck,
+  ChevronDown, Upload, ShieldCheck, ClipboardCheck, Landmark,
 } from "lucide-react";
 
 interface NavItem {
@@ -46,6 +46,14 @@ const navEntries: NavEntry[] = [
       { label: "CAUC Geral", icon: ShieldCheck, path: "/relatorios/cauc-geral" },
     ],
   },
+  {
+    label: "Painéis de Controle",
+    icon: BarChart3,
+    children: [
+      { label: "INSS e RPPS", icon: Landmark, path: "/paineis/extraorcamentario/inss-rpps" },
+      { label: "Saldos Bancários", icon: Landmark, path: "/paineis/financeiro/saldos-bancarios" },
+    ],
+  },
   { label: "Jurídico", icon: Scale, path: "/juridico" },
   { label: "Gestão de Riscos", icon: ShieldAlert, path: "/riscos" },
   { label: "Visitas", icon: MapPin, path: "/visitas" },
@@ -61,6 +69,7 @@ const navEntries: NavEntry[] = [
       { label: "TCM-GO", icon: Globe, path: "/integracoes" },
       { label: "Balancetes", icon: FileText, path: "/integracoes/balancetes" },
       { label: "Importar Lançamentos", icon: Upload, path: "/importar-lancamentos" },
+      { label: "Validador Siconfi", icon: ClipboardCheck, path: "/siconfi/validador" },
     ],
   },
   {
@@ -125,15 +134,15 @@ const AppSidebar = () => {
       )}
     >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border flex-shrink-0">
-        <div className="w-8 h-8 rounded-lg gradient-brand flex items-center justify-center flex-shrink-0">
-          <span className="text-sm font-heading font-bold text-primary-foreground">VH</span>
-        </div>
-        {!sidebarCollapsed && (
-          <div className="animate-fade-in">
-            <p className="font-heading font-semibold text-sm text-sidebar-primary-foreground">IntraService</p>
-            <p className="text-[10px] text-sidebar-foreground/60">VH Contabilidade</p>
-          </div>
+      <div className="flex items-center justify-center px-4 h-16 border-b border-sidebar-border flex-shrink-0">
+        {sidebarCollapsed ? (
+          <span className="text-base font-heading font-bold text-sidebar-primary-foreground">V</span>
+        ) : (
+          <img
+            src="/verus-logotipo.png"
+            alt="Verus"
+            className="h-9 w-auto object-contain animate-fade-in"
+          />
         )}
       </div>
 

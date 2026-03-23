@@ -27,6 +27,9 @@ import ClientesListPage from "@/pages/clientes/ClientesListPage";
 import ClienteFormPage from "@/pages/clientes/ClienteFormPage";
 import ImportarLancamentosPage from "@/pages/ImportarLancamentosPage";
 import BalancetesPage from "@/pages/integracoes/BalancetesPage";
+import ValidadorSiconfiPage from "@/pages/siconfi/ValidadorSiconfiPage";
+import InssRppsPage from "@/pages/paineis/InssRppsPage";
+import SaldosBancariosPage from "@/pages/paineis/SaldosBancariosPage";
 import BoletimContabilPage from "@/pages/relatorios/BoletimContabilPage";
 import CaucMunicipioPage from "@/pages/relatorios/CaucMunicipioPage";
 import CaucGeralPage from "@/pages/relatorios/CaucGeralPage";
@@ -128,6 +131,9 @@ const App = () => (
               <Route path="/clientes/novo" element={<ClienteFormPage />} />
               <Route path="/clientes/:id/editar" element={<ClienteFormPage />} />
               <Route path="/importar-lancamentos" element={<ImportarLancamentosPage />} />
+              <Route path="/siconfi/validador" element={<ValidadorSiconfiPage />} />
+              <Route path="/paineis/extraorcamentario/inss-rpps" element={<InssRppsPage />} />
+              <Route path="/paineis/financeiro/saldos-bancarios" element={<SaldosBancariosPage />} />
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />

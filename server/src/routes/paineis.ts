@@ -1,0 +1,444 @@
+import { Router, Response } from "express";
+import { db } from "../db";
+import { requireAuth, AuthRequest } from "../middleware/auth";
+
+const router = Router();
+router.use(requireAuth);
+
+// Mesmo helper usado em pbi.ts — resolve cliente_id → tcmgo_municipios.id
+async function resolverMunicipioTcmgo(
+  usuarioId: string,
+  perfil: string,
+  clienteId: string
+): Promise<number> {
+  const { rows: [cliente] } = await db.query(
+    `SELECT c.municipio_tcmgo_id, m.nome AS municipio_nome
+     FROM clientes c
+     JOIN municipios m ON m.id = c.municipio_id
+     WHERE c.id = $1 AND c.status = true`,
+    [clienteId]
+  );
+  if (!cliente) throw Object.assign(new Error("Cliente não encontrado."), { status: 404 });
+  if (!cliente.municipio_tcmgo_id)
+    throw Object.assign(
+      new Error(`Município "${cliente.municipio_nome}" sem código TCM-GO configurado.`),
+      { status: 422 }
+    );
+
+  if (perfil !== "Administrador") {
+    const { rows: acesso } = await db.query(
+      `SELECT 1 FROM usuario_municipios um
+       JOIN clientes c ON c.municipio_id = um.municipio_id
+       WHERE um.usuario_id = $1 AND c.id = $2 AND c.status = true`,
+      [usuarioId, clienteId]
+    );
+    if (acesso.length === 0)
+      throw Object.assign(new Error("Sem permissão para acessar este município."), { status: 403 });
+  }
+  return cliente.municipio_tcmgo_id as number;
+}
+
+/**
+ * GET /api/paineis/extraorcamentario/inss-rpps
+ * Query: cliente_id, ano, sub_tipo? ('001'=INSS | '002'=RPPS | omitido=ambos)
+ *
+ * categoria '0' = Receita  |  categoria '1' = Despesa
+ * tipo_lancamento = '01' (Depósitos e Consignações)
+ */
+router.get("/extraorcamentario/inss-rpps", async (req: AuthRequest, res: Response) => {
+  const { cliente_id, ano, sub_tipo } = req.query;
+
+  if (!cliente_id || !ano) {
+    return res.status(400).json({ message: "cliente_id e ano são obrigatórios" });
+  }
+
+  let municipioTcmgoId: number;
+  try {
+    municipioTcmgoId = await resolverMunicipioTcmgo(
+      req.usuario!.id,
+      req.usuario!.perfil,
+      cliente_id as string
+    );
+  } catch (err: any) {
+    return res.status(err.status ?? 500).json({ message: err.message });
+  }
+
+  // Monta filtros dinâmicos de sub_tipo (alias difere entre as queries)
+  const extSubTipoClause = sub_tipo
+    ? `AND e.sub_tipo = $3`
+    : `AND e.sub_tipo IN ('001', '002')`;
+  const aexSubTipoClause = sub_tipo
+    ? `AND a.sub_tipo = $3`
+    : `AND a.sub_tipo IN ('001', '002')`;
+  const params: any[] = [municipioTcmgoId, ano];
+  if (sub_tipo) params.push(sub_tipo);
+
+  try {
+    // ── Lançamentos originais agrupados por mês + órgão ──────────────────────
+    const extSql = `
+      SELECT
+        e.mes_referencia,
+        e.cod_orgao,
+        COALESCE(o.descricao_orgao, e.cod_orgao) AS nome_orgao,
+        e.cod_unidade,
+        e.categoria,
+        e.sub_tipo,
+        e.nr_extra_orcamentaria,
+        e.desc_extra_orc,
+        e.vl_lancamento
+      FROM fato_extraorcamentario e
+      LEFT JOIN tcmgo_orgaos o
+        ON o.codigo_orgao = LTRIM(e.cod_orgao, '0')
+       AND o.municipio_tcmgo_id = e.municipio_id
+      WHERE e.municipio_id = $1
+        AND e.ano_referencia = $2
+        AND e.tipo_lancamento = '01'
+        ${extSubTipoClause}
+      ORDER BY e.mes_referencia, e.cod_orgao, e.nr_extra_orcamentaria
+    `;
+
+    // ── Anulações agrupadas por mês + órgão + categoria ──────────────────────
+    const aexSql = `
+      SELECT
+        a.mes_referencia,
+        a.cod_orgao,
+        a.categoria,
+        COALESCE(SUM(a.vl_anulacao), 0) AS total_anulacao
+      FROM fato_anulacao_extraorcamentario a
+      WHERE a.municipio_id = $1
+        AND a.ano_referencia = $2
+        AND a.tipo_lancamento = '01'
+        ${aexSubTipoClause}
+      GROUP BY a.mes_referencia, a.cod_orgao, a.categoria
+    `;
+
+    const [extResult, aexResult] = await Promise.all([
+      db.query(extSql, params),
+      db.query(aexSql, params),
+    ]);
+
+    const lancamentos = extResult.rows;
+    const anulacoes = aexResult.rows;
+
+    // Índice de anulações: "mes-orgao-categoria" → total
+    const aexIdx = new Map<string, number>();
+    for (const a of anulacoes) {
+      aexIdx.set(`${a.mes_referencia}-${a.cod_orgao}-${a.categoria}`, Number(a.total_anulacao));
+    }
+
+    // ── Agregar por mês → órgão ───────────────────────────────────────────────
+    // Estrutura: mesMap[mes][orgao] = { receita, despesa, anulacao_receita, anulacao_despesa, lancamentos[] }
+    type OrgaoData = {
+      cod_orgao: string;
+      nome_orgao: string;
+      receita: number;
+      despesa: number;
+      anulacao_receita: number;
+      anulacao_despesa: number;
+      lancamentos: typeof lancamentos;
+    };
+    type MesData = {
+      mes: number;
+      orgaos: Map<string, OrgaoData>;
+    };
+
+    const mesMap = new Map<number, MesData>();
+
+    for (const row of lancamentos) {
+      const mes = Number(row.mes_referencia);
+      if (!mesMap.has(mes)) mesMap.set(mes, { mes, orgaos: new Map() });
+      const mesData = mesMap.get(mes)!;
+
+      const orgao = row.cod_orgao ?? "??";
+      if (!mesData.orgaos.has(orgao)) {
+        mesData.orgaos.set(orgao, {
+          cod_orgao: orgao,
+          nome_orgao: row.nome_orgao ?? orgao,
+          receita: 0,
+          despesa: 0,
+          anulacao_receita: aexIdx.get(`${mes}-${orgao}-0`) ?? 0,
+          anulacao_despesa: aexIdx.get(`${mes}-${orgao}-1`) ?? 0,
+          lancamentos: [],
+        });
+      }
+      const orgaoData = mesData.orgaos.get(orgao)!;
+      const valor = Number(row.vl_lancamento ?? 0);
+
+      if (row.categoria === "0") orgaoData.receita += valor;
+      else orgaoData.despesa += valor;
+
+      orgaoData.lancamentos.push({
+        nr_extra_orcamentaria: row.nr_extra_orcamentaria,
+        cod_orgao: row.cod_orgao,
+        cod_unidade: row.cod_unidade,
+        categoria: row.categoria,
+        sub_tipo: row.sub_tipo,
+        desc_extra_orc: row.desc_extra_orc,
+        vl_lancamento: Number(row.vl_lancamento ?? 0),
+      });
+    }
+
+    // ── Montar response final (12 meses garantidos) ────────────────────────────
+    const MESES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+    const por_mes = MESES.map((mes) => {
+      const mesData = mesMap.get(mes);
+      const por_orgao = mesData
+        ? Array.from(mesData.orgaos.values()).map((o) => ({
+            ...o,
+            diferenca: o.receita - o.anulacao_receita - o.despesa - o.anulacao_despesa,
+          }))
+        : [];
+
+      const receita        = por_orgao.reduce((s, o) => s + o.receita, 0);
+      const despesa        = por_orgao.reduce((s, o) => s + o.despesa, 0);
+      const anulacao_receita = por_orgao.reduce((s, o) => s + o.anulacao_receita, 0);
+      const anulacao_despesa = por_orgao.reduce((s, o) => s + o.anulacao_despesa, 0);
+
+      return {
+        mes,
+        receita,
+        despesa,
+        anulacao_receita,
+        anulacao_despesa,
+        diferenca: receita - anulacao_receita - despesa - anulacao_despesa,
+        por_orgao,
+      };
+    });
+
+    return res.json({ por_mes });
+  } catch (err: any) {
+    console.error("[paineis] erro:", err.message);
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+/**
+ * GET /api/paineis/financeiro/saldos-bancarios
+ * Query: cliente_id, ano, mes?, cod_orgao?, tipo_conta?, cod_fonte_recurso?
+ */
+router.get("/financeiro/saldos-bancarios", async (req: AuthRequest, res: Response) => {
+  const { cliente_id, ano, mes, cod_orgao, tipo_conta, cod_fonte_recurso } = req.query;
+
+  if (!cliente_id || !ano) {
+    return res.status(400).json({ message: "cliente_id e ano são obrigatórios" });
+  }
+
+  let municipioTcmgoId: number;
+  try {
+    municipioTcmgoId = await resolverMunicipioTcmgo(req.usuario!.id, req.usuario!.perfil, cliente_id as string);
+  } catch (err: any) {
+    return res.status(err.status ?? 500).json({ message: err.message });
+  }
+
+  try {
+    const usaFonte = !!cod_fonte_recurso;
+
+    // ── Parâmetros base ────────────────────────────────────────────────────────
+    const baseParams: any[] = [municipioTcmgoId, ano];
+    let pIdx = 3;
+
+    const mesClause     = mes         ? `AND f.mes_referencia = $${pIdx++}`    : "";
+    const orgaoClause   = cod_orgao   ? `AND TRIM(f.cod_orgao) = $${pIdx++}`   : "";
+    const tipoClause    = tipo_conta  ? `AND TRIM(f.tipo_conta) = $${pIdx++}`  : "";
+
+    if (mes)        baseParams.push(Number(mes));
+    if (cod_orgao)  baseParams.push(String(cod_orgao));
+    if (tipo_conta) baseParams.push(String(tipo_conta));
+
+    // ── Query principal (contas) ───────────────────────────────────────────────
+    let contasSql: string;
+    let contasParams: any[];
+
+    if (!usaFonte) {
+      // CTB.10 — consolidado por conta
+      contasSql = `
+        SELECT
+          TRIM(f.cod_orgao) AS cod_orgao,
+          COALESCE(o.descricao_orgao, TRIM(f.cod_orgao)) AS nome_orgao,
+          TRIM(f.cod_unidade) AS cod_unidade,
+          LPAD(TRIM(f.banco),3,'0') AS banco,
+          COALESCE(b.descricao, TRIM(f.banco)) AS nome_banco,
+          TRIM(f.agencia) AS agencia,
+          TRIM(f.conta_corrente) AS conta_corrente,
+          TRIM(f.conta_corrente_dv) AS conta_corrente_dv,
+          TRIM(f.tipo_conta) AS tipo_conta,
+          COALESCE(t.descricao, TRIM(f.tipo_conta)) AS desc_tipo_conta,
+          NULL AS cod_fonte_recurso,
+          f.saldo_inicial, f.vl_entradas, f.vl_saidas, f.saldo_final
+        FROM fato_conta_bancaria f
+        LEFT JOIN tcmgo_orgaos o
+          ON LTRIM(o.codigo_orgao,'0') = LTRIM(f.cod_orgao,'0')
+          AND o.municipio_tcmgo_id = f.municipio_id
+        LEFT JOIN dom_instituicao_bancaria b ON b.codigo = LPAD(TRIM(f.banco),3,'0')
+        LEFT JOIN dom_tipo_conta_bancaria t ON t.codigo = TRIM(f.tipo_conta)
+        WHERE f.municipio_id = $1 AND f.ano_referencia = $2
+          ${mesClause} ${orgaoClause} ${tipoClause}
+        ORDER BY nome_orgao, nome_banco, f.conta_corrente
+      `;
+      contasParams = [...baseParams];
+    } else {
+      // CTB.11 — com fonte de recurso
+      let pFonteIdx = 3;
+      const fonteParams: any[] = [municipioTcmgoId, ano];
+      const mesCF     = mes         ? `AND a.mes_referencia = $${pFonteIdx++}`   : "";
+      const orgaoCF   = cod_orgao   ? `AND TRIM(a.cod_orgao) = $${pFonteIdx++}` : "";
+      const tipoCF    = tipo_conta  ? `AND TRIM(a.tipo_conta) = $${pFonteIdx++}`: "";
+      const fonteCF   = `AND TRIM(a.cod_fonte_recurso) = $${pFonteIdx++}`;
+      if (mes)              fonteParams.push(Number(mes));
+      if (cod_orgao)        fonteParams.push(String(cod_orgao));
+      if (tipo_conta)       fonteParams.push(String(tipo_conta));
+      fonteParams.push(String(cod_fonte_recurso));
+
+      contasSql = `
+        SELECT
+          TRIM(a.cod_orgao) AS cod_orgao,
+          COALESCE(o.descricao_orgao, TRIM(a.cod_orgao)) AS nome_orgao,
+          TRIM(a.cod_unidade) AS cod_unidade,
+          LPAD(TRIM(a.banco),3,'0') AS banco,
+          COALESCE(b.descricao, TRIM(a.banco)) AS nome_banco,
+          TRIM(a.agencia) AS agencia,
+          TRIM(a.conta_corrente) AS conta_corrente,
+          TRIM(a.conta_corrente_dv) AS conta_corrente_dv,
+          TRIM(a.tipo_conta) AS tipo_conta,
+          COALESCE(t.descricao, TRIM(a.tipo_conta)) AS desc_tipo_conta,
+          TRIM(a.cod_fonte_recurso) AS cod_fonte_recurso,
+          a.saldo_inicial, a.vl_entradas, a.vl_saidas, a.saldo_final
+        FROM fato_conta_bancaria_aplicacao a
+        LEFT JOIN tcmgo_orgaos o
+          ON LTRIM(o.codigo_orgao,'0') = LTRIM(a.cod_orgao,'0')
+          AND o.municipio_tcmgo_id = a.municipio_id
+        LEFT JOIN dom_instituicao_bancaria b ON b.codigo = LPAD(TRIM(a.banco),3,'0')
+        LEFT JOIN dom_tipo_conta_bancaria t ON t.codigo = TRIM(a.tipo_conta)
+        WHERE a.municipio_id = $1 AND a.ano_referencia = $2
+          ${mesCF} ${orgaoCF} ${tipoCF} ${fonteCF}
+        ORDER BY nome_orgao, nome_banco, a.conta_corrente
+      `;
+      contasParams = fonteParams;
+    }
+
+    // ── Evolução mensal (sempre CTB.10) ───────────────────────────────────────
+    const evolucaoSql = `
+      SELECT mes_referencia AS mes, SUM(saldo_final) AS saldo_final
+      FROM fato_conta_bancaria
+      WHERE municipio_id = $1 AND ano_referencia = $2
+      GROUP BY mes_referencia ORDER BY mes_referencia
+    `;
+
+    // ── Por tipo de conta ─────────────────────────────────────────────────────
+    const tipoSql = `
+      SELECT COALESCE(t.descricao, TRIM(f.tipo_conta)) AS tipo_conta,
+             SUM(f.saldo_final) AS total
+      FROM fato_conta_bancaria f
+      LEFT JOIN dom_tipo_conta_bancaria t ON t.codigo = TRIM(f.tipo_conta)
+      WHERE f.municipio_id = $1 AND f.ano_referencia = $2 ${mesClause}
+      GROUP BY COALESCE(t.descricao, TRIM(f.tipo_conta))
+      ORDER BY total DESC
+    `;
+    const tipoParams = [municipioTcmgoId, ano, ...(mes ? [Number(mes)] : [])];
+
+    // ── Por órgão ─────────────────────────────────────────────────────────────
+    const orgaoSql = `
+      SELECT COALESCE(o.descricao_orgao, TRIM(f.cod_orgao)) AS orgao,
+             SUM(f.vl_entradas) AS entradas,
+             SUM(f.vl_saidas) AS saidas
+      FROM fato_conta_bancaria f
+      LEFT JOIN tcmgo_orgaos o ON LTRIM(o.codigo_orgao,'0') = LTRIM(f.cod_orgao,'0') AND o.municipio_tcmgo_id = f.municipio_id
+      WHERE f.municipio_id = $1 AND f.ano_referencia = $2 ${mesClause}
+      GROUP BY COALESCE(o.descricao_orgao, TRIM(f.cod_orgao))
+      ORDER BY (SUM(f.vl_entradas) + SUM(f.vl_saidas)) DESC
+      LIMIT 10
+    `;
+
+    // ── Por fonte de recurso (CTB.11) ─────────────────────────────────────────
+    const fonteSql = `
+      SELECT
+        TRIM(a.cod_fonte_recurso) AS fonte,
+        SUM(a.saldo_final) AS total
+      FROM fato_conta_bancaria_aplicacao a
+      WHERE a.municipio_id = $1 AND a.ano_referencia = $2 ${mes ? `AND a.mes_referencia = $3` : ""}
+      GROUP BY TRIM(a.cod_fonte_recurso)
+      HAVING SUM(a.saldo_final) > 0
+      ORDER BY total DESC
+      LIMIT 20
+    `;
+    const fonteParams = [municipioTcmgoId, ano, ...(mes ? [Number(mes)] : [])];
+
+    // ── Opções de filtros ─────────────────────────────────────────────────────
+    const orgaosOpcoesSql = `
+      SELECT DISTINCT TRIM(f.cod_orgao) AS cod_orgao,
+             COALESCE(o.descricao_orgao, TRIM(f.cod_orgao)) AS nome_orgao
+      FROM fato_conta_bancaria f
+      LEFT JOIN tcmgo_orgaos o ON LTRIM(o.codigo_orgao,'0') = LTRIM(f.cod_orgao,'0') AND o.municipio_tcmgo_id = f.municipio_id
+      WHERE f.municipio_id = $1 AND f.ano_referencia = $2
+      ORDER BY nome_orgao
+    `;
+    const tiposOpcoesSql = `SELECT codigo, descricao FROM dom_tipo_conta_bancaria WHERE ativo = true ORDER BY codigo`;
+    const fontesOpcoesSql = `
+      SELECT DISTINCT TRIM(cod_fonte_recurso) AS fonte
+      FROM fato_conta_bancaria_aplicacao
+      WHERE municipio_id = $1 AND ano_referencia = $2
+      ORDER BY fonte
+    `;
+
+    const [contasRes, evolRes, tipoRes, orgaoRes, fonteRes, orgaosOpcoes, tiposOpcoes, fontesOpcoes] = await Promise.all([
+      db.query(contasSql, contasParams),
+      db.query(evolucaoSql, [municipioTcmgoId, ano]),
+      db.query(tipoSql, tipoParams),
+      db.query(orgaoSql, tipoParams),
+      db.query(fonteSql, fonteParams),
+      db.query(orgaosOpcoesSql, [municipioTcmgoId, ano]),
+      db.query(tiposOpcoesSql),
+      db.query(fontesOpcoesSql, [municipioTcmgoId, ano]),
+    ]);
+
+    const contas = contasRes.rows.map((r) => ({
+      ...r,
+      saldo_inicial: Number(r.saldo_inicial ?? 0),
+      vl_entradas:   Number(r.vl_entradas   ?? 0),
+      vl_saidas:     Number(r.vl_saidas     ?? 0),
+      saldo_final:   Number(r.saldo_final   ?? 0),
+    }));
+
+    const kpis = contas.reduce(
+      (acc, c) => ({
+        saldo_inicial: acc.saldo_inicial + c.saldo_inicial,
+        vl_entradas:   acc.vl_entradas   + c.vl_entradas,
+        vl_saidas:     acc.vl_saidas     + c.vl_saidas,
+        saldo_final:   acc.saldo_final   + c.saldo_final,
+      }),
+      { saldo_inicial: 0, vl_entradas: 0, vl_saidas: 0, saldo_final: 0 }
+    );
+
+    return res.json({
+      kpis,
+      contas,
+      evolucao_mensal: evolRes.rows.map((r) => ({
+        mes: Number(r.mes),
+        saldo_final: Number(r.saldo_final),
+      })),
+      por_tipo_conta: tipoRes.rows.map((r) => ({
+        tipo_conta: r.tipo_conta,
+        total: Number(r.total),
+      })),
+      por_fonte: fonteRes.rows.map((r) => ({
+        fonte: r.fonte as string,
+        total: Number(r.total),
+      })),
+      por_orgao: orgaoRes.rows.map((r) => ({
+        orgao: r.orgao,
+        entradas: Number(r.entradas),
+        saidas: Number(r.saidas),
+      })),
+      opcoes: {
+        orgaos: orgaosOpcoes.rows,
+        tipos_conta: tiposOpcoes.rows,
+        fontes: fontesOpcoes.rows.map((r: any) => r.fonte),
+      },
+    });
+  } catch (err: any) {
+    console.error("[paineis/saldos-bancarios] erro:", err.message);
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+export default router;

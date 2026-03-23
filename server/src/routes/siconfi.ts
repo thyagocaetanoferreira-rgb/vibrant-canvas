@@ -246,4 +246,58 @@ router.get("/cauc-status", async (req: AuthRequest, res: Response) => {
   return res.json(rows[0]);
 });
 
+// POST /api/siconfi/validacoes — salva resultado de validação MSC
+router.post("/validacoes", async (req: AuthRequest, res: Response) => {
+  const {
+    municipio_id, tipo_msc, arquivo_nome, ano_exercicio,
+    total, ok, avisos, erros, status_geral, resultado_json,
+  } = req.body;
+
+  if (!municipio_id || !tipo_msc || !status_geral) {
+    return res.status(400).json({ message: "municipio_id, tipo_msc e status_geral são obrigatórios" });
+  }
+
+  const { rows } = await db.query(
+    `INSERT INTO siconfi_validacoes
+       (municipio_id, usuario_id, tipo_msc, arquivo_nome, ano_exercicio,
+        total, ok, avisos, erros, status_geral, resultado_json)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+     RETURNING id`,
+    [
+      municipio_id, req.user?.id ?? null, tipo_msc, arquivo_nome ?? null,
+      ano_exercicio ?? null, total ?? 0, ok ?? 0, avisos ?? 0, erros ?? 0,
+      status_geral, resultado_json ? JSON.stringify(resultado_json) : null,
+    ]
+  );
+
+  return res.status(201).json({ id: rows[0].id });
+});
+
+// GET /api/siconfi/validacoes?municipio_id=X&ano=Y
+router.get("/validacoes", async (req: AuthRequest, res: Response) => {
+  const { municipio_id, ano } = req.query;
+  if (!municipio_id) return res.status(400).json({ message: "municipio_id obrigatório" });
+
+  const params: any[] = [municipio_id];
+  let anoFilter = "";
+  if (ano) {
+    params.push(ano);
+    anoFilter = `AND ano_exercicio = $${params.length}`;
+  }
+
+  const { rows } = await db.query(
+    `SELECT sv.id, sv.tipo_msc, sv.arquivo_nome, sv.ano_exercicio,
+            sv.total, sv.ok, sv.avisos, sv.erros, sv.status_geral, sv.criado_em,
+            u.nome AS usuario_nome
+     FROM siconfi_validacoes sv
+     LEFT JOIN usuarios u ON u.id = sv.usuario_id
+     WHERE sv.municipio_id = $1 ${anoFilter}
+     ORDER BY sv.criado_em DESC
+     LIMIT 100`,
+    params
+  );
+
+  return res.json(rows);
+});
+
 export default router;
