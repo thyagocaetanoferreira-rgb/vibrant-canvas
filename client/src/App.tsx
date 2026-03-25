@@ -28,6 +28,8 @@ import ClienteFormPage from "@/pages/clientes/ClienteFormPage";
 import ImportarLancamentosPage from "@/pages/ImportarLancamentosPage";
 import BalancetesPage from "@/pages/integracoes/BalancetesPage";
 import ValidadorSiconfiPage from "@/pages/siconfi/ValidadorSiconfiPage";
+import ImportacaoSiconfiPage from "@/pages/siconfi/ImportacaoSiconfiPage";
+import SiconfiEntregasPage from "@/pages/entregas/SiconfiEntregasPage";
 import InssRppsPage from "@/pages/paineis/InssRppsPage";
 import SaldosBancariosPage from "@/pages/paineis/SaldosBancariosPage";
 import AlteracoesOrcamentariasPage from "@/pages/paineis/AlteracoesOrcamentariasPage";
@@ -134,6 +136,8 @@ const App = () => (
               <Route path="/clientes/:id/editar" element={<ClienteFormPage />} />
               <Route path="/importar-lancamentos" element={<ImportarLancamentosPage />} />
               <Route path="/siconfi/validador" element={<ValidadorSiconfiPage />} />
+              <Route path="/siconfi/importacao" element={<ImportacaoSiconfiPage />} />
+              <Route path="/entregas/siconfi" element={<SiconfiEntregasPage />} />
               <Route path="/paineis/extraorcamentario/inss-rpps" element={<InssRppsPage />} />
               <Route path="/paineis/financeiro/saldos-bancarios" element={<SaldosBancariosPage />} />
               <Route path="/paineis/orcamentario/alteracoes-orcamentarias" element={<AlteracoesOrcamentariasPage />} />

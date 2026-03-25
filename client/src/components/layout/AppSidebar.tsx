@@ -6,7 +6,8 @@ import {
   LayoutDashboard, Send, ListTodo, Scale, ShieldAlert,
   MapPin, Users, FileText, Bell, Settings, Calendar,
   BarChart3, Globe, CreditCard, ChevronLeft, ChevronRight, Building2,
-  ChevronDown, Upload, ShieldCheck, ClipboardCheck, Landmark,
+  ChevronDown, Upload, ShieldCheck, ClipboardCheck, Landmark, Database,
+  ClipboardList,
 } from "lucide-react";
 
 interface NavItem {
@@ -28,7 +29,15 @@ const isGroup = (entry: NavEntry): entry is NavGroup => "children" in entry;
 const navEntries: NavEntry[] = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/" },
   { label: "Agenda", icon: Calendar, path: "/agenda" },
-  { label: "Entregas", icon: Send, path: "/entregas" },
+  { label: "Validador SICONFI", icon: ClipboardCheck, path: "/siconfi/validador" },
+  {
+    label: "Entregas",
+    icon: Send,
+    children: [
+      { label: "Controle de Envios", icon: Send,          path: "/entregas" },
+      { label: "SICONFI",            icon: ClipboardList, path: "/entregas/siconfi" },
+    ],
+  },
   {
     label: "Demandas",
     icon: ListTodo,
@@ -71,7 +80,7 @@ const navEntries: NavEntry[] = [
       { label: "TCM-GO", icon: Globe, path: "/integracoes" },
       { label: "Balancetes", icon: FileText, path: "/integracoes/balancetes" },
       { label: "Importar Lançamentos", icon: Upload, path: "/importar-lancamentos" },
-      { label: "Validador Siconfi", icon: ClipboardCheck, path: "/siconfi/validador" },
+      { label: "Importação RREO", icon: Database, path: "/siconfi/importacao" },
     ],
   },
   {
