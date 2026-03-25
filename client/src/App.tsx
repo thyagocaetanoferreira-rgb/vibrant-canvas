@@ -30,6 +30,8 @@ import BalancetesPage from "@/pages/integracoes/BalancetesPage";
 import ValidadorSiconfiPage from "@/pages/siconfi/ValidadorSiconfiPage";
 import InssRppsPage from "@/pages/paineis/InssRppsPage";
 import SaldosBancariosPage from "@/pages/paineis/SaldosBancariosPage";
+import AlteracoesOrcamentariasPage from "@/pages/paineis/AlteracoesOrcamentariasPage";
+import DividaConsolidadaPage from "@/pages/paineis/DividaConsolidadaPage";
 import BoletimContabilPage from "@/pages/relatorios/BoletimContabilPage";
 import CaucMunicipioPage from "@/pages/relatorios/CaucMunicipioPage";
 import CaucGeralPage from "@/pages/relatorios/CaucGeralPage";
@@ -134,6 +136,8 @@ const App = () => (
               <Route path="/siconfi/validador" element={<ValidadorSiconfiPage />} />
               <Route path="/paineis/extraorcamentario/inss-rpps" element={<InssRppsPage />} />
               <Route path="/paineis/financeiro/saldos-bancarios" element={<SaldosBancariosPage />} />
+              <Route path="/paineis/orcamentario/alteracoes-orcamentarias" element={<AlteracoesOrcamentariasPage />} />
+              <Route path="/paineis/orcamentario/divida-consolidada" element={<DividaConsolidadaPage />} />
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />

@@ -20,7 +20,7 @@ const ModulePlaceholder = ({ title, description, icon: Icon }: ModulePlaceholder
         </div>
         <h3 className="font-heading font-semibold text-card-foreground text-lg">Módulo em Desenvolvimento</h3>
         <p className="text-sm text-muted-foreground mt-2 max-w-md">
-          Este módulo está sendo preparado para a nova versão do IntraService. Em breve estará disponível com todas as funcionalidades.
+          Este módulo está sendo preparado para a nova versão do Verus. Em breve estará disponível com todas as funcionalidades.
         </p>
       </div>
     </div>

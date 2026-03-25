@@ -59,13 +59,11 @@ const LoginPage = () => {
         <div className="absolute top-1/3 right-1/4 w-32 h-32 rounded-full bg-white/5" />
 
         <div className="relative z-10 text-center px-12">
-          <div className="text-7xl font-heading font-extrabold text-white mb-4 tracking-tight">VH</div>
-          <div className="text-2xl font-heading font-bold text-white mb-2">IntraService</div>
-          <div className="text-base text-white/80">VH Contabilidade Pública</div>
+          <img src="/logo-verus-branca.webp" alt="Verus" className="h-24 w-auto object-contain mx-auto" />
         </div>
 
         <div className="absolute bottom-6 left-0 right-0 text-center">
-          <span className="text-xs text-white/60">Sistema de Gestão Interna</span>
+          <span className="text-xs text-white/60">Sistema elaborado pela VH Contabilidade Pública</span>
         </div>
       </div>
 
@@ -74,11 +72,11 @@ const LoginPage = () => {
         <div className="w-full max-w-md space-y-8">
           <div className="lg:hidden text-center mb-8">
             <div className="text-4xl font-heading font-extrabold text-primary mb-1">VH</div>
-            <div className="text-lg font-heading font-bold text-foreground">IntraService</div>
+            <div className="text-lg font-heading font-bold text-foreground">Verus</div>
           </div>
 
           <div className="text-center">
-            <h1 className="text-2xl font-heading font-bold text-foreground">Bem-vindo ao IntraService</h1>
+            <h1 className="text-2xl font-heading font-bold text-foreground">Bem-vindo ao Verus</h1>
             <p className="text-muted-foreground mt-1">Faça login para continuar</p>
           </div>
 

@@ -77,12 +77,29 @@
     @apply bg-background text-foreground font-body antialiased;
   }
 
+  ::placeholder {
+    color: #2bb0f9 !important;
+    opacity: 1;
+  }
+
+  [data-placeholder] {
+    color: #2bb0f9 !important;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading;
   }
 }
 
 @layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
   .gradient-brand {
     background: var(--gradient-brand);
   }

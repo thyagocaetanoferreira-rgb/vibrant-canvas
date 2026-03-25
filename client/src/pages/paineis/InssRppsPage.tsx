@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -62,6 +63,9 @@ interface ApiResponse {
 const BRL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const fmt = (v: number) => BRL.format(v);
 
+const fmtC = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { notation: "compact", compactDisplay: "short" }).format(v);
+
 const MESES_ABR = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 const MESES_NOME = [
   "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
@@ -74,19 +78,42 @@ const SUB_TIPO_LABELS: Record<SubTipoFiltro, string> = {
   "002": "RPPS",
 };
 
-// ── Componentes auxiliares ────────────────────────────────────────────────────
+// ── Tooltip customizado Verus ─────────────────────────────────────────────────
+
+function CustomTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-[#e3eef6] rounded-lg shadow-lg p-3 text-xs">
+      <p className="font-semibold text-[#033e66] mb-1">{label}</p>
+      {payload.map((p: any) => (
+        <p key={p.name} style={{ color: p.color }}>
+          {p.name}: {fmt(p.value)}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+// ── Card KPI (padrão Verus) ───────────────────────────────────────────────────
 
 function KpiCard({
-  label, value, color, icon,
-}: { label: string; value: number; color: string; icon?: React.ReactNode }) {
+  label, value, borderColor, icon: Icon,
+}: {
+  label: string; value: number; borderColor: string;
+  icon: React.ElementType;
+}) {
   return (
-    <div className={cn("rounded-xl border p-4 space-y-1 bg-card", color)}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">{label}</span>
-        {icon}
-      </div>
-      <p className="text-xl font-bold font-heading leading-tight">{fmt(value)}</p>
-    </div>
+    <Card className="bg-white shadow-sm rounded-xl border-0 border-l-4" style={{ borderLeftColor: borderColor }}>
+      <CardContent className="p-4 flex items-start justify-between">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium text-[#045ba3] uppercase tracking-wide truncate">{label}</p>
+          <p className="text-lg font-extrabold text-[#033e66] mt-0.5 leading-tight">{fmt(value)}</p>
+        </div>
+        <div className="ml-3 p-2 rounded-lg" style={{ backgroundColor: `${borderColor}18` }}>
+          <Icon className="h-5 w-5" style={{ color: borderColor }} />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -116,17 +143,17 @@ function OrgaosSheet({
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto">
         <SheetHeader className="mb-4">
-          <SheetTitle>
+          <SheetTitle className="text-[#033e66]">
             {mes != null ? MESES_NOME[mes - 1] : ""} — Órgãos
           </SheetTitle>
         </SheetHeader>
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Órgão</TableHead>
-              <TableHead className="text-right">Receita</TableHead>
-              <TableHead className="text-right">Despesa</TableHead>
-              <TableHead className="text-right">Diferença</TableHead>
+            <TableRow className="bg-[#e3eef6]/50">
+              <TableHead className="font-bold text-[#033e66]">Órgão</TableHead>
+              <TableHead className="text-right font-bold text-[#033e66]">Receita</TableHead>
+              <TableHead className="text-right font-bold text-[#033e66]">Despesa</TableHead>
+              <TableHead className="text-right font-bold text-[#033e66]">Diferença</TableHead>
               <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
@@ -134,27 +161,27 @@ function OrgaosSheet({
             {orgaos.map((o) => (
               <TableRow
                 key={o.cod_orgao}
-                className="cursor-pointer hover:bg-accent/40 group"
+                className="cursor-pointer hover:bg-[#e3eef6]/40 transition-colors group"
                 onClick={() => onOrgaoClick(o)}
               >
                 <TableCell>
-                  <div className="font-medium leading-tight">{o.nome_orgao}</div>
-                  <div className="text-xs text-muted-foreground font-mono">{o.cod_orgao}</div>
+                  <div className="font-medium leading-tight text-[#033e66]">{o.nome_orgao}</div>
+                  <div className="text-xs text-[#045ba3] font-mono">{o.cod_orgao}</div>
                 </TableCell>
-                <TableCell className="text-right text-blue-600 dark:text-blue-400">{fmt(o.receita)}</TableCell>
-                <TableCell className="text-right text-red-600 dark:text-red-400">{fmt(o.despesa)}</TableCell>
+                <TableCell className="text-right font-medium" style={{ color: "#008ded" }}>{fmt(o.receita)}</TableCell>
+                <TableCell className="text-right font-medium text-[#ef4444]">{fmt(o.despesa)}</TableCell>
                 <TableCell className={cn(
                   "text-right font-semibold",
                   o.diferenca > 0
-                    ? "text-red-600 dark:text-red-400"
+                    ? "text-[#ef4444]"
                     : o.diferenca < 0
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-muted-foreground"
+                      ? "text-[#00e1a4]"
+                      : "text-[#045ba3]"
                 )}>
                   {fmt(o.diferenca)}
                 </TableCell>
                 <TableCell className="text-center">
-                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-border bg-muted/50 text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary transition-all">
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-[#e3eef6] bg-[#e3eef6]/50 text-[#045ba3] group-hover:bg-[#008ded] group-hover:text-white group-hover:border-[#008ded] transition-all">
                     <ChevronRight className="w-3.5 h-3.5" />
                   </span>
                 </TableCell>
@@ -185,43 +212,47 @@ function LancamentosSheet({
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto">
         <SheetHeader className="mb-4">
-          <SheetTitle>
+          <SheetTitle className="text-[#033e66]">
             Lançamentos — Órgão {orgao?.cod_orgao}
-            {mes != null && <span className="text-muted-foreground font-normal text-sm ml-2">({MESES_NOME[mes - 1]})</span>}
+            {mes != null && <span className="text-[#045ba3] font-normal text-sm ml-2">({MESES_NOME[mes - 1]})</span>}
           </SheetTitle>
         </SheetHeader>
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Nº Extra-Orç.</TableHead>
-              <TableHead>Unidade</TableHead>
-              <TableHead>Categoria</TableHead>
-              <TableHead>Subtipo</TableHead>
-              <TableHead>Descrição</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
+            <TableRow className="bg-[#e3eef6]/50">
+              <TableHead className="font-bold text-[#033e66]">Nº Extra-Orç.</TableHead>
+              <TableHead className="font-bold text-[#033e66]">Unidade</TableHead>
+              <TableHead className="font-bold text-[#033e66]">Categoria</TableHead>
+              <TableHead className="font-bold text-[#033e66]">Subtipo</TableHead>
+              <TableHead className="font-bold text-[#033e66]">Descrição</TableHead>
+              <TableHead className="text-right font-bold text-[#033e66]">Valor</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {lancamentos.map((l, i) => (
-              <TableRow key={i}>
-                <TableCell className="font-mono text-xs">{l.nr_extra_orcamentaria}</TableCell>
-                <TableCell className="font-mono text-xs">{l.cod_unidade}</TableCell>
+              <TableRow key={i} className="hover:bg-[#e3eef6]/30 transition-colors">
+                <TableCell className="font-mono text-xs text-[#045ba3]">{l.nr_extra_orcamentaria}</TableCell>
+                <TableCell className="font-mono text-xs text-[#045ba3]">{l.cod_unidade}</TableCell>
                 <TableCell>
-                  <Badge variant="outline" className="text-xs">
+                  <Badge
+                    variant="outline"
+                    className="text-xs border-[#008ded] text-[#008ded]"
+                  >
                     {CAT_NOME[l.categoria] ?? l.categoria}
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary" className="text-xs">
+                  <Badge
+                    variant="secondary"
+                    className="text-xs bg-[#e3eef6] text-[#045ba3]"
+                  >
                     {SUB_TIPO_NOME[l.sub_tipo] ?? l.sub_tipo}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-xs max-w-[200px] truncate">{l.desc_extra_orc}</TableCell>
+                <TableCell className="text-xs max-w-[200px] truncate text-[#033e66]">{l.desc_extra_orc}</TableCell>
                 <TableCell className={cn(
                   "text-right font-medium text-xs",
-                  l.categoria === "0"
-                    ? "text-blue-600 dark:text-blue-400"
-                    : "text-red-600 dark:text-red-400"
+                  l.categoria === "0" ? "text-[#008ded]" : "text-[#ef4444]"
                 )}>
                   {fmt(l.vl_lancamento)}
                 </TableCell>
@@ -229,7 +260,7 @@ function LancamentosSheet({
             ))}
             {lancamentos.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={6} className="text-center text-[#045ba3] py-8">
                   Nenhum lançamento
                 </TableCell>
               </TableRow>
@@ -248,8 +279,6 @@ export default function InssRppsPage() {
   const [filtro, setFiltro] = useState<SubTipoFiltro>("ambos");
   const [mesSelecionado, setMesSelecionado] = useState<MesData | null>(null);
   const [orgaoSelecionado, setOrgaoSelecionado] = useState<OrgaoData | null>(null);
-
-  const municipioId = municipio?.municipioId;
 
   const clienteId = municipio?.clienteId;
   const queryKey = ["paineis-inss-rpps", clienteId, anoExercicio, filtro];
@@ -270,14 +299,12 @@ export default function InssRppsPage() {
   const meses: MesData[] = data?.por_mes ?? [];
 
   // KPIs totais anuais
-  const totalReceita        = meses.reduce((s, m) => s + m.receita, 0);
-  const totalDespesa        = meses.reduce((s, m) => s + m.despesa, 0);
-  const totalAnulacoes      = meses.reduce((s, m) => s + m.anulacao_receita + m.anulacao_despesa, 0);
-  const totalSaldo          = meses.reduce((s, m) => s + m.diferenca, 0);
-  // Positivo = município reteve (ruim); negativo = repassou (bom)
-  const reteve              = totalSaldo > 0;
+  const totalReceita   = meses.reduce((s, m) => s + m.receita, 0);
+  const totalDespesa   = meses.reduce((s, m) => s + m.despesa, 0);
+  const totalAnulacoes = meses.reduce((s, m) => s + m.anulacao_receita + m.anulacao_despesa, 0);
+  const totalSaldo     = meses.reduce((s, m) => s + m.diferenca, 0);
+  const reteve         = totalSaldo > 0;
 
-  // Dados para o gráfico
   const chartData = meses.map((m) => ({
     mes: MESES_ABR[m.mes - 1],
     Receita: m.receita,
@@ -293,30 +320,31 @@ export default function InssRppsPage() {
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <Landmark className="w-5 h-5 text-primary" />
-            <h1 className="text-2xl font-heading font-bold text-primary">
+            <Landmark className="w-6 h-6 text-primary" />
+            <h1 className="text-2xl font-heading font-bold text-[#033e66]">
               INSS e RPPS — Extraorçamentário
             </h1>
+            <Badge variant="outline" className="text-xs border-[#008ded] text-[#008ded]">CTB</Badge>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-[#045ba3] mt-1">
             {municipio
-              ? <><span className="font-medium text-foreground">{municipio.municipioNome}</span> · Exercício {anoExercicio}</>
+              ? <><span className="font-medium text-[#033e66]">{municipio.municipioNome}</span> · Exercício {anoExercicio}</>
               : "Selecione um município para carregar os dados"}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-xs">
-            {SUB_TIPO_LABELS[filtro]}
-          </Badge>
-          <Button size="sm" variant="outline" onClick={() => refetch()} className="gap-1.5">
-            <RefreshCw className="w-3.5 h-3.5" /> Atualizar
-          </Button>
-        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => refetch()}
+          className="border-[#e3eef6] text-[#045ba3] hover:bg-[#e3eef6] gap-1.5"
+        >
+          <RefreshCw className="w-3.5 h-3.5" /> Atualizar
+        </Button>
       </div>
 
       {/* ── Toggle de filtro ─────────────────────────────────────────────── */}
-      <div className="flex gap-1 p-1 rounded-lg bg-muted/50 w-fit">
+      <div className="flex gap-1 p-1 rounded-lg bg-[#e3eef6]/60 w-fit">
         {(["ambos", "001", "002"] as SubTipoFiltro[]).map((v) => (
           <button
             key={v}
@@ -324,8 +352,8 @@ export default function InssRppsPage() {
             className={cn(
               "px-4 py-1.5 rounded-md text-sm font-medium transition-all",
               filtro === v
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
+                ? "bg-[#008ded] text-white shadow-sm"
+                : "text-[#045ba3] hover:text-[#033e66] hover:bg-[#e3eef6]"
             )}
           >
             {v === "ambos" ? "Ambos" : v === "001" ? "INSS" : "RPPS"}
@@ -335,19 +363,19 @@ export default function InssRppsPage() {
 
       {/* ── Conteúdo principal ───────────────────────────────────────────── */}
       {!clienteId ? (
-        <div className="rounded-xl border bg-muted/20 flex items-center justify-center py-20">
-          <p className="text-sm text-muted-foreground">Selecione um município no menu superior.</p>
+        <div className="rounded-xl border border-[#e3eef6] bg-[#e3eef6]/40 flex items-center justify-center py-20">
+          <p className="text-sm text-[#045ba3]">Selecione um município no menu superior.</p>
         </div>
       ) : isLoading ? (
         <SkeletonPage />
       ) : isError ? (
-        <div className="rounded-xl border bg-destructive/10 p-6 text-center text-destructive">
+        <div className="rounded-xl border border-[#ef4444]/30 bg-[#ef4444]/5 p-6 text-center text-[#ef4444] text-sm">
           Erro ao carregar dados. Tente novamente.
         </div>
       ) : !hasData ? (
-        <div className="rounded-xl border bg-muted/20 flex flex-col items-center justify-center py-20 gap-2">
-          <Landmark className="w-10 h-10 text-muted-foreground/40" />
-          <p className="text-sm text-muted-foreground">
+        <div className="rounded-xl border border-[#e3eef6] bg-[#e3eef6]/40 flex flex-col items-center justify-center py-20 gap-2">
+          <Landmark className="w-10 h-10 text-[#045ba3]/30" />
+          <p className="text-sm text-[#045ba3]">
             Nenhum lançamento encontrado para este município e exercício.
           </p>
         </div>
@@ -358,159 +386,173 @@ export default function InssRppsPage() {
             <KpiCard
               label="Total Receita"
               value={totalReceita}
-              color="border-blue-200 dark:border-blue-900"
-              icon={<TrendingUp className="w-4 h-4 text-blue-500" />}
+              borderColor="#008ded"
+              icon={TrendingUp}
             />
             <KpiCard
               label="Total Despesa"
               value={totalDespesa}
-              color="border-red-200 dark:border-red-900"
-              icon={<TrendingDown className="w-4 h-4 text-red-500" />}
+              borderColor="#ef4444"
+              icon={TrendingDown}
             />
             <KpiCard
               label="Total Anulações"
               value={totalAnulacoes}
-              color="border-orange-200 dark:border-orange-900"
-              icon={<span className="text-orange-500 text-base leading-none">∅</span>}
+              borderColor="#ffb85a"
+              icon={TrendingDown}
             />
-            <div className={cn(
-              "rounded-xl border p-4 space-y-1 bg-card",
-              reteve
-                ? "border-red-200 dark:border-red-900"
-                : "border-green-200 dark:border-green-900"
-            )}>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">Saldo Líquido</span>
-                {reteve
-                  ? <TrendingUp className="w-4 h-4 text-red-500" />
-                  : <TrendingDown className="w-4 h-4 text-green-500" />}
-              </div>
-              <p className={cn(
-                "text-xl font-bold font-heading leading-tight",
-                reteve ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"
-              )}>
-                {fmt(totalSaldo)}
-              </p>
-              {reteve && (
-                <p className="text-xs text-red-500 font-medium">⚠ Município reteve recursos</p>
-              )}
-            </div>
+            {/* Saldo Líquido — card especial com indicador semântico */}
+            <Card
+              className="bg-white shadow-sm rounded-xl border-0 border-l-4"
+              style={{ borderLeftColor: reteve ? "#ef4444" : "#00e1a4" }}
+            >
+              <CardContent className="p-4 flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-[#045ba3] uppercase tracking-wide">Saldo Líquido</p>
+                  <p
+                    className="text-lg font-extrabold mt-0.5 leading-tight"
+                    style={{ color: reteve ? "#ef4444" : "#00aac6" }}
+                  >
+                    {fmt(totalSaldo)}
+                  </p>
+                  {reteve && (
+                    <p className="text-xs font-medium mt-0.5" style={{ color: "#ffb85a" }}>
+                      ⚠ Município reteve recursos
+                    </p>
+                  )}
+                </div>
+                <div
+                  className="ml-3 p-2 rounded-lg"
+                  style={{ backgroundColor: reteve ? "#ef444418" : "#00e1a418" }}
+                >
+                  {reteve
+                    ? <TrendingUp className="h-5 w-5 text-[#ef4444]" />
+                    : <TrendingDown className="h-5 w-5" style={{ color: "#00aac6" }} />
+                  }
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* ── Tabela mensal ───────────────────────────────────────────── */}
-          <div className="rounded-xl border bg-card overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="font-bold text-foreground">Mês</TableHead>
-                  <TableHead className="text-right font-bold text-foreground">Receita</TableHead>
-                  <TableHead className="text-right font-bold text-foreground">Despesa</TableHead>
-                  <TableHead className="text-right font-bold text-foreground">Anul. Receita</TableHead>
-                  <TableHead className="text-right font-bold text-foreground">Anul. Despesa</TableHead>
-                  <TableHead className="text-right font-bold text-foreground">Diferença</TableHead>
-                  <TableHead className="w-10" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {meses.map((m) => (
-                  <TableRow
-                    key={m.mes}
-                    className="cursor-pointer hover:bg-accent/30 transition-colors group"
-                    onClick={() => setMesSelecionado(m)}
-                  >
-                    <TableCell className="font-medium">
-                      {MESES_NOME[m.mes - 1]}
+          <Card className="rounded-xl border border-[#e3eef6] shadow-sm overflow-hidden">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold text-[#033e66]">Resumo Mensal</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-[#e3eef6]/50">
+                    <TableHead className="font-bold text-[#033e66]">Mês</TableHead>
+                    <TableHead className="text-right font-bold text-[#033e66]">Receita</TableHead>
+                    <TableHead className="text-right font-bold text-[#033e66]">Despesa</TableHead>
+                    <TableHead className="text-right font-bold text-[#033e66]">Anul. Receita</TableHead>
+                    <TableHead className="text-right font-bold text-[#033e66]">Anul. Despesa</TableHead>
+                    <TableHead className="text-right font-bold text-[#033e66]">Diferença</TableHead>
+                    <TableHead className="w-10" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {meses.map((m) => (
+                    <TableRow
+                      key={m.mes}
+                      className="cursor-pointer hover:bg-[#e3eef6]/40 transition-colors group"
+                      onClick={() => setMesSelecionado(m)}
+                    >
+                      <TableCell className="font-medium text-[#033e66]">
+                        {MESES_NOME[m.mes - 1]}
+                      </TableCell>
+                      <TableCell className="text-right font-medium" style={{ color: "#008ded" }}>
+                        {fmt(m.receita)}
+                      </TableCell>
+                      <TableCell className="text-right font-medium text-[#ef4444]">
+                        {fmt(m.despesa)}
+                      </TableCell>
+                      <TableCell className="text-right text-[#ffb85a]">
+                        {fmt(m.anulacao_receita)}
+                      </TableCell>
+                      <TableCell className="text-right text-[#ffb85a]">
+                        {fmt(m.anulacao_despesa)}
+                      </TableCell>
+                      <TableCell className={cn(
+                        "text-right font-semibold",
+                        m.diferenca > 0
+                          ? "text-[#ef4444]"
+                          : m.diferenca < 0
+                            ? "text-[#00aac6]"
+                            : "text-[#045ba3]"
+                      )}>
+                        {fmt(m.diferenca)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <span className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-[#e3eef6] bg-[#e3eef6]/50 text-[#045ba3] group-hover:bg-[#008ded] group-hover:text-white group-hover:border-[#008ded] transition-all">
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+
+                  {/* Linha de totais */}
+                  <TableRow className="bg-[#e3eef6]/50 font-bold border-t-2">
+                    <TableCell className="font-bold text-[#033e66]">Total</TableCell>
+                    <TableCell className="text-right font-bold" style={{ color: "#008ded" }}>
+                      {fmt(totalReceita)}
                     </TableCell>
-                    <TableCell className="text-right text-blue-600 dark:text-blue-400">
-                      {fmt(m.receita)}
+                    <TableCell className="text-right font-bold text-[#ef4444]">
+                      {fmt(totalDespesa)}
                     </TableCell>
-                    <TableCell className="text-right text-red-600 dark:text-red-400">
-                      {fmt(m.despesa)}
+                    <TableCell className="text-right font-bold text-[#ffb85a]">
+                      {fmt(meses.reduce((s, m) => s + m.anulacao_receita, 0))}
                     </TableCell>
-                    <TableCell className="text-right text-orange-600 dark:text-orange-400">
-                      {fmt(m.anulacao_receita)}
-                    </TableCell>
-                    <TableCell className="text-right text-orange-600 dark:text-orange-400">
-                      {fmt(m.anulacao_despesa)}
+                    <TableCell className="text-right font-bold text-[#ffb85a]">
+                      {fmt(meses.reduce((s, m) => s + m.anulacao_despesa, 0))}
                     </TableCell>
                     <TableCell className={cn(
-                      "text-right font-semibold rounded",
-                      m.diferenca > 0
-                        ? "text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/30"
-                        : m.diferenca < 0
-                          ? "text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/30"
-                          : "text-muted-foreground"
+                      "text-right font-bold",
+                      reteve ? "text-[#ef4444]" : "text-[#00aac6]"
                     )}>
-                      {fmt(m.diferenca)}
+                      {fmt(totalSaldo)}
                     </TableCell>
-                    <TableCell className="text-center">
-                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-border bg-muted/50 text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary transition-all">
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </span>
-                    </TableCell>
+                    <TableCell />
                   </TableRow>
-                ))}
-
-                {/* Linha de totais */}
-                <TableRow className="bg-muted/40 font-bold border-t-2">
-                  <TableCell className="font-bold">Total</TableCell>
-                  <TableCell className="text-right text-blue-700 dark:text-blue-300 font-bold">
-                    {fmt(totalReceita)}
-                  </TableCell>
-                  <TableCell className="text-right text-red-700 dark:text-red-300 font-bold">
-                    {fmt(totalDespesa)}
-                  </TableCell>
-                  <TableCell className="text-right text-orange-700 dark:text-orange-300 font-bold">
-                    {fmt(meses.reduce((s, m) => s + m.anulacao_receita, 0))}
-                  </TableCell>
-                  <TableCell className="text-right text-orange-700 dark:text-orange-300 font-bold">
-                    {fmt(meses.reduce((s, m) => s + m.anulacao_despesa, 0))}
-                  </TableCell>
-                  <TableCell className={cn(
-                    "text-right font-bold",
-                    reteve ? "text-red-700 dark:text-red-300" : "text-green-700 dark:text-green-300"
-                  )}>
-                    {fmt(totalSaldo)}
-                  </TableCell>
-                  <TableCell />
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
 
           {/* ── Gráfico ─────────────────────────────────────────────────── */}
-          <div className="rounded-xl border bg-card p-4">
-            <h2 className="font-semibold text-sm mb-4 text-muted-foreground">
-              Evolução Mensal — Receita × Despesa × Diferença
-            </h2>
-            <ResponsiveContainer width="100%" height={280}>
-              <ComposedChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="mes" tick={{ fontSize: 12 }} />
-                <YAxis
-                  tickFormatter={(v) =>
-                    new Intl.NumberFormat("pt-BR", { notation: "compact", compactDisplay: "short" }).format(v)
-                  }
-                  tick={{ fontSize: 11 }}
-                  width={72}
-                />
-                <Tooltip
-                  formatter={(value: number, name: string) => [fmt(value), name]}
-                  labelStyle={{ fontWeight: "bold" }}
-                />
-                <Legend />
-                <Bar dataKey="Receita" fill="#3b82f6" radius={[3, 3, 0, 0]} maxBarSize={40} />
-                <Bar dataKey="Despesa" fill="#ef4444" radius={[3, 3, 0, 0]} maxBarSize={40} />
-                <Line
-                  type="monotone"
-                  dataKey="Diferença"
-                  stroke="#16a34a"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
+          <Card className="rounded-xl border border-[#e3eef6] shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold text-[#033e66]">
+                Evolução Mensal — Receita × Despesa × Diferença
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={280}>
+                <ComposedChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e3eef6" />
+                  <XAxis dataKey="mes" tick={{ fontSize: 12, fill: "#045ba3" }} />
+                  <YAxis
+                    tickFormatter={(v) => fmtC(v)}
+                    tick={{ fontSize: 11, fill: "#045ba3" }}
+                    width={72}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend wrapperStyle={{ fontSize: 11, color: "#045ba3" }} />
+                  <Bar dataKey="Receita" fill="#008ded" radius={[3, 3, 0, 0]} maxBarSize={40} />
+                  <Bar dataKey="Despesa" fill="#ffb85a" radius={[3, 3, 0, 0]} maxBarSize={40} />
+                  <Line
+                    type="monotone"
+                    dataKey="Diferença"
+                    stroke="#00e1a4"
+                    strokeWidth={2.5}
+                    dot={{ r: 3, fill: "#00e1a4" }}
+                    activeDot={{ r: 5 }}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
         </>
       )}
 

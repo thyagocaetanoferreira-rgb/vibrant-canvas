@@ -52,6 +52,8 @@ const navEntries: NavEntry[] = [
     children: [
       { label: "INSS e RPPS", icon: Landmark, path: "/paineis/extraorcamentario/inss-rpps" },
       { label: "Saldos Bancários", icon: Landmark, path: "/paineis/financeiro/saldos-bancarios" },
+      { label: "Alt. Orçamentárias", icon: BarChart3, path: "/paineis/orcamentario/alteracoes-orcamentarias" },
+      { label: "Dívida Consolidada", icon: Scale, path: "/paineis/orcamentario/divida-consolidada" },
     ],
   },
   { label: "Jurídico", icon: Scale, path: "/juridico" },
@@ -136,18 +138,18 @@ const AppSidebar = () => {
       {/* Logo */}
       <div className="flex items-center justify-center px-4 h-16 border-b border-sidebar-border flex-shrink-0">
         {sidebarCollapsed ? (
-          <span className="text-base font-heading font-bold text-sidebar-primary-foreground">V</span>
+          <img src="/favicon.webp" alt="Verus" className="h-6 w-6 object-contain" />
         ) : (
           <img
-            src="/verus-logotipo.png"
+            src="/logo-verus-colorida.webp"
             alt="Verus"
-            className="h-9 w-auto object-contain animate-fade-in"
+            className="h-7 w-auto object-contain animate-fade-in"
           />
         )}
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto scrollbar-hide py-3 px-2 space-y-0.5">
         {navEntries.map((entry) => {
           if (!isGroup(entry)) {
             return renderLink(entry);

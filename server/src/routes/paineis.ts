@@ -441,4 +441,504 @@ router.get("/financeiro/saldos-bancarios", async (req: AuthRequest, res: Respons
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/paineis/orcamentario/alteracoes-orcamentarias
+// Query: cliente_id, ano, meses?, orgaos?, tipos_alteracao?, fontes?, cod_natureza_despesa?
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/orcamentario/alteracoes-orcamentarias", async (req: AuthRequest, res: Response) => {
+  const { cliente_id, ano, meses, orgaos, tipos_alteracao, fontes, cod_natureza_despesa } = req.query;
+
+  if (!cliente_id || !ano) {
+    return res.status(400).json({ message: "cliente_id e ano são obrigatórios" });
+  }
+
+  let municipioId: number;
+  try {
+    municipioId = await resolverMunicipioTcmgo(req.usuario!.id, req.usuario!.perfil, cliente_id as string);
+  } catch (err: any) {
+    return res.status(err.status ?? 500).json({ message: err.message });
+  }
+
+  // ── Parse filtros ──────────────────────────────────────────────────────────
+  const mesesArr   = meses   ? String(meses).split(",").map(Number).filter(n => n >= 1 && n <= 12) : [];
+  const orgaosArr  = orgaos  ? String(orgaos).split(",").filter(Boolean) : [];
+  const tiposArr   = tipos_alteracao ? String(tipos_alteracao).split(",").filter(Boolean) : [];
+  const fontesArr  = fontes  ? String(fontes).split(",").filter(Boolean) : [];
+  const natureza   = cod_natureza_despesa ? String(cod_natureza_despesa).trim() : "";
+
+  // ── WHERE dinâmico para fato_alteracao_orcamentaria_fonte ──────────────────
+  const buildWhere = (alias: string, includeMes = true) => {
+    const p: any[] = [municipioId, ano];
+    let w = "";
+    let i = 3;
+    if (includeMes && mesesArr.length > 0) { w += ` AND ${alias}.mes_referencia = ANY($${i})`; p.push(mesesArr); i++; }
+    if (orgaosArr.length  > 0) { w += ` AND ${alias}.cod_orgao = ANY($${i})`; p.push(orgaosArr); i++; }
+    if (tiposArr.length   > 0) { w += ` AND ${alias}.tipo_alteracao = ANY($${i})`; p.push(tiposArr); i++; }
+    if (fontesArr.length  > 0) { w += ` AND ${alias}.cod_fonte_recurso = ANY($${i})`; p.push(fontesArr); i++; }
+    if (natureza) { w += ` AND ${alias}.cod_natureza_despesa ILIKE $${i}`; p.push(`%${natureza}%`); i++; }
+    return { p, w };
+  };
+
+  const { p, w }        = buildWhere("f");
+  const { p: pEv, w: wEv } = buildWhere("f", false); // evolução: sem filtro de mês
+
+  // WHERE receita: só municipio + ano + meses
+  const pRec: any[] = [municipioId, ano];
+  let wRec = "";
+  if (mesesArr.length > 0) { wRec = ` AND r.mes_referencia = ANY($3)`; pRec.push(mesesArr); }
+
+  try {
+    const [kpiRes, receitaRes, gridRes, evolucaoRes, orgaoRes, fonteRes, atosRes,
+           opOrgaosRes, opFontesRes, opMesesRes, opTiposRes] = await Promise.all([
+
+      // 1. KPIs principais
+      db.query(`
+        SELECT
+          COALESCE(SUM(f.vl_saldo_ant_fonte),  0) AS vl_saldo_ant_fonte,
+          COALESCE(SUM(f.vl_alteracao_fonte),  0) AS vl_alteracao_fonte,
+          COALESCE(SUM(f.vl_saldo_atual_fonte),0) AS vl_saldo_atual_fonte,
+          COUNT(DISTINCT f.nr_alteracao)           AS qtd_alteracoes
+        FROM fato_alteracao_orcamentaria_fonte f
+        WHERE f.municipio_id = $1 AND f.ano_referencia = $2${w}
+      `, p),
+
+      // 2. Receita prevista (para % da receita)
+      db.query(`
+        SELECT COALESCE(SUM(r.vl_previsto_atualizado), 0) AS vl_previsto_atualizado
+        FROM fato_receita r
+        WHERE r.municipio_id = $1 AND r.ano_referencia = $2${wRec}
+      `, pRec),
+
+      // 3. Grid por tipo de alteração (todos os tipos do domínio)
+      db.query(`
+        SELECT
+          t.codigo, t.descricao,
+          COALESCE(sub.vl_saldo_ant_fonte,  0) AS vl_saldo_ant_fonte,
+          COALESCE(sub.vl_alteracao_fonte,  0) AS vl_alteracao_fonte,
+          COALESCE(sub.vl_saldo_atual_fonte,0) AS vl_saldo_atual_fonte
+        FROM dom_tipo_alteracao_orcamentaria t
+        LEFT JOIN (
+          SELECT f.tipo_alteracao,
+            SUM(f.vl_saldo_ant_fonte)  AS vl_saldo_ant_fonte,
+            SUM(f.vl_alteracao_fonte)  AS vl_alteracao_fonte,
+            SUM(f.vl_saldo_atual_fonte) AS vl_saldo_atual_fonte
+          FROM fato_alteracao_orcamentaria_fonte f
+          WHERE f.municipio_id = $1 AND f.ano_referencia = $2${w}
+          GROUP BY f.tipo_alteracao
+        ) sub ON sub.tipo_alteracao = t.codigo
+        WHERE t.ativo = true
+        ORDER BY t.codigo
+      `, p),
+
+      // 4. Evolução mensal (sem filtro de mês para mostrar todos os meses)
+      db.query(`
+        SELECT
+          f.mes_referencia AS mes,
+          COALESCE(SUM(f.vl_alteracao_fonte),  0) AS vl_alteracao_fonte,
+          COALESCE(SUM(f.vl_saldo_atual_fonte),0) AS vl_saldo_atual_fonte
+        FROM fato_alteracao_orcamentaria_fonte f
+        WHERE f.municipio_id = $1 AND f.ano_referencia = $2${wEv}
+        GROUP BY f.mes_referencia ORDER BY f.mes_referencia
+      `, pEv),
+
+      // 5. Por órgão (top 10)
+      db.query(`
+        SELECT
+          f.cod_orgao,
+          COALESCE(MAX(o.desc_orgao), 'Órgão ' || f.cod_orgao) AS desc_orgao,
+          COALESCE(SUM(f.vl_alteracao_fonte), 0) AS vl_alteracao_fonte
+        FROM fato_alteracao_orcamentaria_fonte f
+        LEFT JOIN fato_orgao o
+          ON o.municipio_id = f.municipio_id AND o.ano_referencia = f.ano_referencia AND o.cod_orgao = f.cod_orgao
+        WHERE f.municipio_id = $1 AND f.ano_referencia = $2${w}
+        GROUP BY f.cod_orgao
+        ORDER BY vl_alteracao_fonte DESC LIMIT 10
+      `, p),
+
+      // 6. Por fonte (top 10)
+      db.query(`
+        SELECT
+          f.cod_fonte_recurso,
+          COALESCE(d.nomenclatura_fonte_tcm, 'Fonte ' || f.cod_fonte_recurso) AS nomenclatura,
+          COALESCE(SUM(f.vl_alteracao_fonte), 0) AS vl_alteracao_fonte
+        FROM fato_alteracao_orcamentaria_fonte f
+        LEFT JOIN dom_fonte_tcm_v2 d ON d.cod_fonte_tcm = f.cod_fonte_recurso
+        WHERE f.municipio_id = $1 AND f.ano_referencia = $2${w}
+        GROUP BY f.cod_fonte_recurso, d.nomenclatura_fonte_tcm
+        ORDER BY vl_alteracao_fonte DESC LIMIT 10
+      `, p),
+
+      // 7. Atos legais (Bloco 4)
+      db.query(`
+        SELECT
+          a.subtipo,
+          a.mes_referencia,
+          CASE a.subtipo
+            WHEN '90' THEN 'Lei de Suplementação'
+            WHEN '91' THEN 'Lei de Crédito Especial'
+            WHEN '92' THEN 'Lei para Realocação de Recursos'
+            WHEN '93' THEN 'Lei de Alteração do PPA'
+            WHEN '94' THEN 'Decreto de Abertura de Créditos'
+          END AS tipo_ato,
+          CASE a.subtipo
+            WHEN '90' THEN a.nr_lei_suplementacao
+            WHEN '91' THEN a.nr_lei_credito_esp
+            WHEN '92' THEN a.nr_lei_realoc
+            WHEN '93' THEN a.nr_lei_alt_ppa
+            WHEN '94' THEN a.nr_decreto
+          END AS numero,
+          CASE a.subtipo
+            WHEN '90' THEN a.data_lei_suplementacao
+            WHEN '91' THEN a.data_lei_credito_esp
+            WHEN '92' THEN a.data_lei_realoc
+            WHEN '93' THEN a.data_lei_alt_ppa
+            WHEN '94' THEN a.data_decreto
+          END AS data_ato,
+          COALESCE(a.vl_autorizado, a.vl_decreto) AS vl_autorizado,
+          a.tipo_credito
+        FROM fato_aoc_ato a
+        WHERE a.municipio_id = $1 AND a.ano_referencia = $2
+          ${mesesArr.length > 0 ? "AND a.mes_referencia = ANY($3)" : ""}
+        ORDER BY a.mes_referencia, a.subtipo
+      `, mesesArr.length > 0 ? [municipioId, ano, mesesArr] : [municipioId, ano]),
+
+      // 8. Opções: órgãos
+      db.query(`
+        SELECT DISTINCT f.cod_orgao,
+          COALESCE(MAX(o.desc_orgao), 'Órgão ' || f.cod_orgao) AS desc_orgao
+        FROM fato_alteracao_orcamentaria_fonte f
+        LEFT JOIN fato_orgao o ON o.municipio_id = f.municipio_id AND o.ano_referencia = f.ano_referencia AND o.cod_orgao = f.cod_orgao
+        WHERE f.municipio_id = $1 AND f.ano_referencia = $2
+        GROUP BY f.cod_orgao ORDER BY desc_orgao
+      `, [municipioId, ano]),
+
+      // 9. Opções: fontes
+      db.query(`
+        SELECT DISTINCT f.cod_fonte_recurso,
+          COALESCE(d.nomenclatura_fonte_tcm, 'Fonte ' || f.cod_fonte_recurso) AS nomenclatura
+        FROM fato_alteracao_orcamentaria_fonte f
+        LEFT JOIN dom_fonte_tcm_v2 d ON d.cod_fonte_tcm = f.cod_fonte_recurso
+        WHERE f.municipio_id = $1 AND f.ano_referencia = $2
+        ORDER BY f.cod_fonte_recurso
+      `, [municipioId, ano]),
+
+      // 10. Opções: meses disponíveis
+      db.query(`
+        SELECT DISTINCT mes_referencia FROM fato_alteracao_orcamentaria_fonte
+        WHERE municipio_id = $1 AND ano_referencia = $2
+        ORDER BY mes_referencia
+      `, [municipioId, ano]),
+
+      // 11. Opções: tipos de alteração (domínio completo)
+      db.query(`SELECT codigo, descricao FROM dom_tipo_alteracao_orcamentaria WHERE ativo = true ORDER BY codigo`),
+    ]);
+
+    const totalReceita = Number(receitaRes.rows[0]?.vl_previsto_atualizado ?? 0);
+
+    return res.json({
+      kpis: {
+        vl_previsto_atualizado: totalReceita,
+        vl_saldo_ant_fonte:  Number(kpiRes.rows[0]?.vl_saldo_ant_fonte  ?? 0),
+        vl_alteracao_fonte:  Number(kpiRes.rows[0]?.vl_alteracao_fonte  ?? 0),
+        vl_saldo_atual_fonte:Number(kpiRes.rows[0]?.vl_saldo_atual_fonte ?? 0),
+        qtd_alteracoes:      Number(kpiRes.rows[0]?.qtd_alteracoes       ?? 0),
+      },
+      grid_tipos: gridRes.rows.map((r) => ({
+        codigo:             r.codigo,
+        descricao:          r.descricao,
+        vl_saldo_ant_fonte: Number(r.vl_saldo_ant_fonte),
+        vl_alteracao_fonte: Number(r.vl_alteracao_fonte),
+        vl_saldo_atual_fonte:Number(r.vl_saldo_atual_fonte),
+        pct_receita: totalReceita > 0 ? (Number(r.vl_alteracao_fonte) / totalReceita) * 100 : 0,
+      })),
+      evolucao_mensal: evolucaoRes.rows.map((r) => ({
+        mes:               Number(r.mes),
+        vl_alteracao_fonte:Number(r.vl_alteracao_fonte),
+        vl_saldo_atual_fonte:Number(r.vl_saldo_atual_fonte),
+      })),
+      por_orgao: orgaoRes.rows.map((r) => ({
+        cod_orgao:         r.cod_orgao,
+        desc_orgao:        r.desc_orgao,
+        vl_alteracao_fonte:Number(r.vl_alteracao_fonte),
+      })),
+      por_fonte: fonteRes.rows.map((r) => ({
+        cod_fonte_recurso: r.cod_fonte_recurso,
+        nomenclatura:      r.nomenclatura,
+        vl_alteracao_fonte:Number(r.vl_alteracao_fonte),
+      })),
+      atos_legais: atosRes.rows.map((r) => ({
+        subtipo:       r.subtipo,
+        tipo_ato:      r.tipo_ato,
+        numero:        r.numero,
+        data_ato:      r.data_ato,
+        vl_autorizado: r.vl_autorizado != null ? Number(r.vl_autorizado) : null,
+        tipo_credito:  r.tipo_credito,
+        mes_referencia:Number(r.mes_referencia),
+      })),
+      opcoes: {
+        orgaos: opOrgaosRes.rows,
+        fontes: opFontesRes.rows,
+        meses:  opMesesRes.rows.map((r: any) => Number(r.mes_referencia)),
+        tipos:  opTiposRes.rows,
+      },
+    });
+  } catch (err: any) {
+    console.error("[paineis/alteracoes-orcamentarias] erro:", err.message);
+    return res.status(500).json({ message: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/paineis/orcamentario/divida-consolidada
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/orcamentario/divida-consolidada", async (req: AuthRequest, res: Response) => {
+  const { cliente_id, ano, meses, orgao, tp_lancamento, credor, tipo_pessoa, cpf_cnpj, nro_lei } = req.query;
+
+  if (!cliente_id || !ano) return res.status(400).json({ message: "cliente_id e ano são obrigatórios" });
+
+  let municipioId: number;
+  try {
+    municipioId = await resolverMunicipioTcmgo(req.usuario!.id, req.usuario!.perfil, cliente_id as string);
+  } catch (err: any) {
+    return res.status(err.status ?? 500).json({ message: err.message });
+  }
+
+  try {
+    // ── Build WHERE dinâmico ──────────────────────────────────────────────────
+    const mesesArr: number[] = meses
+      ? String(meses).split(",").map(Number).filter(Boolean)
+      : [];
+
+    let idx = 3;
+    const conds: string[] = [];
+    const vals: any[]    = [municipioId, Number(ano)];
+
+    if (mesesArr.length > 0) { conds.push(`d.mes_referencia = ANY($${idx++})`); vals.push(mesesArr); }
+    if (orgao)               { conds.push(`TRIM(d.cod_orgao) = $${idx++}`);          vals.push(String(orgao)); }
+    if (tp_lancamento)       { conds.push(`TRIM(d.tp_lancamento) = $${idx++}`);       vals.push(String(tp_lancamento)); }
+    if (credor)              { conds.push(`TRIM(d.nome_credor) ILIKE $${idx++}`);     vals.push(`%${credor}%`); }
+    if (tipo_pessoa)         { conds.push(`TRIM(d.tipo_pessoa) = $${idx++}`);         vals.push(String(tipo_pessoa)); }
+    if (cpf_cnpj)            { conds.push(`TRIM(d.cpf_cnpj_credor) ILIKE $${idx++}`); vals.push(`%${cpf_cnpj}%`); }
+    if (nro_lei)             { conds.push(`TRIM(d.nro_lei_autorizacao) ILIKE $${idx++}`); vals.push(`%${nro_lei}%`); }
+
+    const w = conds.length ? " AND " + conds.join(" AND ") : "";
+
+    // WHERE sem filtro de mês (para evolução)
+    const condsEv = conds.filter((_, i) => {
+      const c = conds[i]; return !c.includes("mes_referencia");
+    });
+    const valsEv = [municipioId, Number(ano), ...vals.slice(2).filter((_, i) => {
+      if (mesesArr.length > 0) return i !== 0; return true;
+    })];
+    const wEv = condsEv.length ? " AND " + condsEv.join(" AND ") : "";
+
+    const baseFrom   = `FROM fato_divida_consolidada d`;
+    const baseWhere  = `WHERE d.municipio_id = $1 AND d.ano_referencia = $2${w}`;
+    const base       = `${baseFrom} ${baseWhere}`;
+    const baseWhereEv = `WHERE d.municipio_id = $1 AND d.ano_referencia = $2${wEv}`;
+    const baseEv     = `${baseFrom} ${baseWhereEv}`;
+
+    const [
+      kpiRes, evolRes, porTipoRes, contrAmortRes,
+      porCredorRes, porOrgaoRes, movsRes, gradeRes,
+      opMesesRes, opOrgaosRes, opTiposRes
+    ] = await Promise.all([
+
+      // 1. KPIs
+      db.query(`
+        SELECT
+          COALESCE(SUM(d.vl_saldo_anterior),0) AS vl_saldo_anterior,
+          COALESCE(SUM(d.vl_contratacao),   0) AS vl_contratacao,
+          COALESCE(SUM(d.vl_amortizacao),   0) AS vl_amortizacao,
+          COALESCE(SUM(d.vl_cancelamento),  0) AS vl_cancelamento,
+          COALESCE(SUM(d.vl_encampacao),    0) AS vl_encampacao,
+          COALESCE(SUM(d.vl_atualizacao),   0) AS vl_atualizacao,
+          COALESCE(SUM(d.vl_saldo_atual),   0) AS vl_saldo_atual,
+          COUNT(*)                              AS qtd_registros
+        ${base}
+      `, vals),
+
+      // 2. Evolução mensal (sem filtro de mês)
+      db.query(`
+        SELECT d.mes_referencia AS mes,
+          COALESCE(SUM(d.vl_saldo_atual),  0) AS vl_saldo_atual,
+          COALESCE(SUM(d.vl_amortizacao),  0) AS vl_amortizacao,
+          COALESCE(SUM(d.vl_contratacao),  0) AS vl_contratacao
+        ${baseEv}
+        GROUP BY d.mes_referencia ORDER BY d.mes_referencia
+      `, valsEv),
+
+      // 3. Por tipo de lançamento
+      db.query(`
+        SELECT TRIM(d.tp_lancamento) AS tp_lancamento,
+          COALESCE(t.descricao, TRIM(d.tp_lancamento)) AS descricao,
+          COALESCE(SUM(d.vl_saldo_atual),0) AS vl_saldo_atual
+        ${baseFrom}
+        LEFT JOIN dom_tipo_divida t ON t.codigo = TRIM(d.tp_lancamento)
+        ${baseWhere}
+        GROUP BY TRIM(d.tp_lancamento), t.descricao ORDER BY vl_saldo_atual DESC
+      `, vals),
+
+      // 4. Contratação x Amortização por mês
+      db.query(`
+        SELECT d.mes_referencia AS mes,
+          COALESCE(SUM(d.vl_contratacao),0) AS vl_contratacao,
+          COALESCE(SUM(d.vl_amortizacao),0) AS vl_amortizacao
+        ${baseEv}
+        GROUP BY d.mes_referencia ORDER BY d.mes_referencia
+      `, valsEv),
+
+      // 5. Por credor (top 12)
+      db.query(`
+        SELECT TRIM(d.nome_credor) AS nome_credor,
+          TRIM(d.cpf_cnpj_credor) AS cpf_cnpj_credor,
+          TRIM(d.tipo_pessoa)     AS tipo_pessoa,
+          COALESCE(SUM(d.vl_saldo_atual),0) AS vl_saldo_atual,
+          COUNT(*) AS qtd_registros
+        ${base}
+        GROUP BY TRIM(d.nome_credor), TRIM(d.cpf_cnpj_credor), TRIM(d.tipo_pessoa)
+        ORDER BY vl_saldo_atual DESC LIMIT 12
+      `, vals),
+
+      // 6. Por órgão
+      db.query(`
+        SELECT TRIM(d.cod_orgao) AS cod_orgao,
+          COALESCE(MAX(o.desc_orgao), 'Órgão ' || TRIM(d.cod_orgao)) AS desc_orgao,
+          COALESCE(SUM(d.vl_saldo_atual),0) AS vl_saldo_atual
+        ${baseFrom}
+        LEFT JOIN fato_orgao o ON o.municipio_id = d.municipio_id AND o.ano_referencia = d.ano_referencia AND TRIM(o.cod_orgao) = TRIM(d.cod_orgao)
+        ${baseWhere}
+        GROUP BY TRIM(d.cod_orgao) ORDER BY vl_saldo_atual DESC
+      `, vals),
+
+      // 7. Movimentações totais (gráfico F)
+      db.query(`
+        SELECT
+          COALESCE(SUM(d.vl_contratacao),0) AS contratacao,
+          COALESCE(SUM(d.vl_amortizacao),0) AS amortizacao,
+          COALESCE(SUM(d.vl_cancelamento),0) AS cancelamento,
+          COALESCE(SUM(d.vl_encampacao),0)  AS encampacao,
+          COALESCE(SUM(d.vl_atualizacao),0) AS atualizacao
+        ${base}
+      `, vals),
+
+      // 8. Grade analítica completa
+      db.query(`
+        SELECT
+          d.id, d.mes_referencia,
+          TRIM(d.cod_orgao)   AS cod_orgao,
+          COALESCE(MAX(o.desc_orgao) OVER (PARTITION BY d.municipio_id, d.ano_referencia, d.cod_orgao),
+                   'Órgão ' || TRIM(d.cod_orgao)) AS desc_orgao,
+          TRIM(d.cod_unidade) AS cod_unidade,
+          TRIM(d.tp_lancamento) AS tp_lancamento,
+          COALESCE(t.descricao, TRIM(d.tp_lancamento)) AS desc_tipo_divida,
+          TRIM(d.nro_lei_autorizacao) AS nro_lei_autorizacao,
+          d.dt_lei_autorizacao,
+          TRIM(d.nome_credor)      AS nome_credor,
+          TRIM(d.tipo_pessoa)      AS tipo_pessoa,
+          TRIM(d.cpf_cnpj_credor)  AS cpf_cnpj_credor,
+          d.vl_saldo_anterior, d.vl_contratacao, d.vl_amortizacao,
+          d.vl_cancelamento,   d.vl_encampacao,  d.vl_atualizacao, d.vl_saldo_atual,
+          ROUND((d.vl_saldo_anterior + d.vl_contratacao - d.vl_amortizacao
+                 - d.vl_cancelamento + d.vl_encampacao + d.vl_atualizacao)::NUMERIC, 2)
+            AS vl_saldo_calculado,
+          ROUND((d.vl_saldo_atual - (d.vl_saldo_anterior + d.vl_contratacao - d.vl_amortizacao
+                 - d.vl_cancelamento + d.vl_encampacao + d.vl_atualizacao))::NUMERIC, 2)
+            AS vl_diferenca
+        FROM fato_divida_consolidada d
+        LEFT JOIN fato_orgao o ON o.municipio_id = d.municipio_id AND o.ano_referencia = d.ano_referencia AND TRIM(o.cod_orgao) = TRIM(d.cod_orgao)
+        LEFT JOIN dom_tipo_divida t ON t.codigo = TRIM(d.tp_lancamento)
+        WHERE d.municipio_id = $1 AND d.ano_referencia = $2${w}
+        ORDER BY desc_orgao, TRIM(d.cod_unidade), TRIM(d.tp_lancamento), TRIM(d.nome_credor), d.dt_lei_autorizacao
+      `, vals),
+
+      // 9. Opções: meses disponíveis
+      db.query(`
+        SELECT DISTINCT mes_referencia FROM fato_divida_consolidada
+        WHERE municipio_id = $1 AND ano_referencia = $2
+        ORDER BY mes_referencia
+      `, [municipioId, Number(ano)]),
+
+      // 10. Opções: órgãos
+      db.query(`
+        SELECT DISTINCT TRIM(d.cod_orgao) AS cod_orgao,
+          COALESCE(MAX(o.desc_orgao), 'Órgão ' || TRIM(d.cod_orgao)) AS desc_orgao
+        FROM fato_divida_consolidada d
+        LEFT JOIN fato_orgao o ON o.municipio_id = d.municipio_id AND o.ano_referencia = d.ano_referencia AND TRIM(o.cod_orgao) = TRIM(d.cod_orgao)
+        WHERE d.municipio_id = $1 AND d.ano_referencia = $2
+        GROUP BY TRIM(d.cod_orgao) ORDER BY desc_orgao
+      `, [municipioId, Number(ano)]),
+
+      // 11. Opções: tipos de lançamento com dados
+      db.query(`
+        SELECT DISTINCT TRIM(d.tp_lancamento) AS codigo,
+          COALESCE(t.descricao, TRIM(d.tp_lancamento)) AS descricao
+        FROM fato_divida_consolidada d
+        LEFT JOIN dom_tipo_divida t ON t.codigo = TRIM(d.tp_lancamento)
+        WHERE d.municipio_id = $1 AND d.ano_referencia = $2
+        ORDER BY codigo
+      `, [municipioId, Number(ano)]),
+    ]);
+
+    const n = (v: any) => Number(v ?? 0);
+    const kpi = kpiRes.rows[0] ?? {};
+    const movs = movsRes.rows[0] ?? {};
+
+    return res.json({
+      kpis: {
+        vl_saldo_anterior: n(kpi.vl_saldo_anterior),
+        vl_contratacao:    n(kpi.vl_contratacao),
+        vl_amortizacao:    n(kpi.vl_amortizacao),
+        vl_cancelamento:   n(kpi.vl_cancelamento),
+        vl_encampacao:     n(kpi.vl_encampacao),
+        vl_atualizacao:    n(kpi.vl_atualizacao),
+        vl_saldo_atual:    n(kpi.vl_saldo_atual),
+        qtd_registros:     n(kpi.qtd_registros),
+      },
+      evolucao_mensal: evolRes.rows.map((r) => ({
+        mes: n(r.mes), vl_saldo_atual: n(r.vl_saldo_atual),
+        vl_amortizacao: n(r.vl_amortizacao), vl_contratacao: n(r.vl_contratacao),
+      })),
+      por_tipo: porTipoRes.rows.map((r) => ({
+        tp_lancamento: r.tp_lancamento, descricao: r.descricao, vl_saldo_atual: n(r.vl_saldo_atual),
+      })),
+      contr_amort_mensal: contrAmortRes.rows.map((r) => ({
+        mes: n(r.mes), vl_contratacao: n(r.vl_contratacao), vl_amortizacao: n(r.vl_amortizacao),
+      })),
+      por_credor: porCredorRes.rows.map((r) => ({
+        nome_credor: r.nome_credor, cpf_cnpj_credor: r.cpf_cnpj_credor,
+        tipo_pessoa: r.tipo_pessoa, vl_saldo_atual: n(r.vl_saldo_atual), qtd_registros: n(r.qtd_registros),
+      })),
+      por_orgao: porOrgaoRes.rows.map((r) => ({
+        cod_orgao: r.cod_orgao, desc_orgao: r.desc_orgao, vl_saldo_atual: n(r.vl_saldo_atual),
+      })),
+      movimentacoes: {
+        contratacao: n(movs.contratacao), amortizacao: n(movs.amortizacao),
+        cancelamento: n(movs.cancelamento), encampacao: n(movs.encampacao), atualizacao: n(movs.atualizacao),
+      },
+      grade: gradeRes.rows.map((r) => ({
+        id: r.id, mes_referencia: n(r.mes_referencia),
+        cod_orgao: r.cod_orgao, desc_orgao: r.desc_orgao, cod_unidade: r.cod_unidade,
+        tp_lancamento: r.tp_lancamento, desc_tipo_divida: r.desc_tipo_divida,
+        nro_lei_autorizacao: r.nro_lei_autorizacao, dt_lei_autorizacao: r.dt_lei_autorizacao,
+        nome_credor: r.nome_credor, tipo_pessoa: r.tipo_pessoa, cpf_cnpj_credor: r.cpf_cnpj_credor,
+        vl_saldo_anterior: n(r.vl_saldo_anterior), vl_contratacao: n(r.vl_contratacao),
+        vl_amortizacao: n(r.vl_amortizacao), vl_cancelamento: n(r.vl_cancelamento),
+        vl_encampacao: n(r.vl_encampacao), vl_atualizacao: n(r.vl_atualizacao),
+        vl_saldo_atual: n(r.vl_saldo_atual), vl_saldo_calculado: n(r.vl_saldo_calculado),
+        vl_diferenca: n(r.vl_diferenca),
+      })),
+      opcoes: {
+        meses:  opMesesRes.rows.map((r: any) => n(r.mes_referencia)),
+        orgaos: opOrgaosRes.rows,
+        tipos:  opTiposRes.rows,
+      },
+    });
+  } catch (err: any) {
+    console.error("[paineis/divida-consolidada] erro:", err.message);
+    return res.status(500).json({ message: err.message });
+  }
+});
+
 export default router;
+

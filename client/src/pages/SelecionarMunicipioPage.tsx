@@ -27,7 +27,7 @@ const SelecionarMunicipioPage = () => {
           <div className="flex items-center justify-center gap-2 mb-1">
             <span className="text-2xl font-heading font-extrabold text-primary">VH</span>
             <span className="text-muted-foreground">·</span>
-            <span className="text-sm font-medium text-foreground">IntraService VH Contabilidade</span>
+            <span className="text-sm font-medium text-foreground">Verus</span>
           </div>
         </CardHeader>
         <CardContent className="pt-6 space-y-4">
