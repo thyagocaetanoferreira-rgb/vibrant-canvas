@@ -1391,10 +1391,43 @@ function ehExcecaoNegativoRREO(coluna: string, cod_conta: string): boolean {
       col.includes("º EXERCÍCIO") || col.includes("º EXERCICIO") ||
       col.includes("° EXERCÍCIO") || col.includes("° EXERCICIO")) return true;
 
-  // 6. By cod_conta (camelCase): Resultado*, Variacao*, Meta*
+  // 6. Referências mensais (<MR-N>) — saldos pontuais do mês
+  if (col.startsWith("<MR")) return true;
+
+  // 7. Percentuais — podem ser negativos por definição
+  if (col.includes("% (")) return true;
+
+  // 8. Movimentos bimestrais — deduções parciais do bimestre
+  if (col.includes("NO BIMESTRE")) return true;
+
+  // 9. Acumulados dos últimos 12 meses
+  if (col.includes("ULTIMOS 12 MESES") || col.includes("ÚLTIMOS 12 MESES")) return true;
+
+  // 10. Previsões orçamentárias
+  if (col.includes("PREVISÃO") || col.includes("PREVISAO")) return true;
+
+  // 11. Valor incorrido — variações monetárias
+  if (col.includes("VALOR INCORRIDO")) return true;
+
+  // 12. Liquidações bimestrais parciais
+  if (col.includes("LIQUIDADAS NO BIMESTRE")) return true;
+
+  // 13. By cod_conta: Resultado*, Variacao*, Meta*
   if (cod_conta.includes("Resultado")) return true;
   if (cod_conta.includes("Variacao") || cod_conta.includes("Variação")) return true;
   if (cod_conta.includes("Meta")) return true;
+
+  // 14. Deduções — valores de abatimento (negativos por natureza)
+  if (cod_conta.includes("Deducao") || cod_conta.includes("Deducoes")) return true;
+
+  // 15. RPPS / Previdência — natureza contábil distinta
+  if (cod_conta.includes("RPPS") || cod_conta.includes("Previdencia")) return true;
+
+  // 16. Saldos financeiros
+  if (cod_conta.includes("Saldo")) return true;
+
+  // 17. Valores líquidos (após deduções)
+  if (cod_conta.includes("Liquida")) return true;
 
   return false;
 }
