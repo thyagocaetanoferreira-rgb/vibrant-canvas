@@ -310,6 +310,102 @@ function DetalhesXX_YYYYY({ detalhes }: { detalhes: any[] }) {
 }
 ```
 
+#### Padrão de detalhamento por componente (obrigatório para regras de igualdade)
+
+Sempre que a regra compara **somas de múltiplos componentes** de dois demonstrativos,
+o componente de detalhes **deve** expor cada componente individualmente.
+Isso permite que o usuário identifique exatamente qual linha do relatório está
+divergente e corrija o envio ao SICONFI.
+
+**Estrutura esperada no array `detalhes` (backend):**
+
+```typescript
+detalhes.push({
+  periodo:       number,
+  label:         string,           // ex: "1° Bimestre (Jan-Fev) (B)"
+  total_anexo_X: number,           // soma do bloco A
+  total_anexo_Y: number,           // soma do bloco B
+  diferenca:     number,           // A - B
+  ok:            boolean,
+  componentes_X: [                 // cada parcela do bloco A
+    { cod_conta: string, coluna: string, valor: number },
+    ...
+  ],
+  componentes_Y: [                 // cada parcela do bloco B
+    { cod_conta: string, coluna: string, valor: number },
+    ...
+  ],
+});
+```
+
+**Dicionário de rótulos legíveis (frontend):**
+
+Declare um `Record<"cod_conta|coluna", { nome, descricao }>` acima do componente
+para traduzir os identificadores técnicos em texto inteligível:
+
+```typescript
+const XX_YYYYY_LABELS: Record<string, { nome: string; descricao: string }> = {
+  "RREO6TotalDespesaPrimaria|PAGOS (c)": {
+    nome: "Total da Despesa Primária — Pagos (c)",
+    descricao: "Soma dos RP Não Processados pagos no exercício (An06)",
+  },
+  // ... demais componentes
+};
+```
+
+**Layout do componente — grade lado a lado por período:**
+
+```tsx
+<div className="space-y-3 p-1">
+  {detalhes.map((d, i) => (
+    <div key={i} className={`rounded-lg border ${d.ok ? "border-[#c7dff0]" : "border-[#fca5a5]"}`}>
+      {/* Cabeçalho: período, diferença, status */}
+      <div className={`flex items-center justify-between px-4 py-2 rounded-t-lg ${d.ok ? "bg-[#e3eef6]/60" : "bg-[#fef2f2]"}`}>
+        <span className="text-sm font-semibold text-[#033e66]">{d.label}</span>
+        <div className="flex items-center gap-4">
+          <span className="text-xs font-mono font-semibold ...">Diferença: {fmt(d.diferenca)}</span>
+          {d.ok
+            ? <span className="... bg-[#d1fae5] ...">✓ Consistente</span>
+            : <span className="... bg-[#fee2e2] ...">✗ Divergente</span>}
+        </div>
+      </div>
+      {/* Grade lado a lado: Bloco A | Bloco B */}
+      <div className="grid grid-cols-2 divide-x divide-[#c7dff0]">
+        <div className="p-3">
+          <p className="text-[10px] font-bold ...">RREO-Anexo XX — Total: {fmt(d.total_anexo_X)}</p>
+          <table className="w-full text-xs">
+            {/* thead: Conta/Coluna | Valor */}
+            <tbody>
+              {d.componentes_X.map((c, j) => {
+                const meta = XX_YYYYY_LABELS[`${c.cod_conta}|${c.coluna}`];
+                return (
+                  <tr key={j}>
+                    <td>
+                      <p className="font-semibold text-[#033e66]">{meta?.nome ?? c.cod_conta}</p>
+                      <p className="text-[10px] text-[#6b7280]">{c.cod_conta} | {c.coluna}</p>
+                      <p className="text-[10px] text-[#6b7280] italic">{meta?.descricao}</p>
+                    </td>
+                    <td className={`text-right font-mono ${c.valor === 0 ? "text-[#9ca3af]" : "text-[#045ba3] font-semibold"}`}>
+                      {fmt(c.valor)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {/* Coluna Bloco B — estrutura idêntica */}
+        <div className="p-3">...</div>
+      </div>
+    </div>
+  ))}
+</div>
+```
+
+> **Regra:** valores zero devem aparecer em cinza (`text-[#9ca3af]`) para sinalizar
+> que a conta **existe na fórmula mas não foi encontrada** no relatório — o que já
+> orienta o usuário a verificar o preenchimento daquela linha no SICONFI.
+
 ### Passo 5 — Registrar o componente no mapa
 
 ```typescript
@@ -337,20 +433,35 @@ docker compose --env-file .env.docker up -d --build backend frontend
 
 ### Fase 1 — RREO Conformidade
 
-| Código | Título | Fonte | Tipo de Nota | Status |
-|---|---|---|---|---|
-| D1_00001 | Homologação de todos os RREOs | `siconfi_extrato_entregas` | Proporcional (bimestres/semestres entregues) | ✅ |
-| D1_00006 | Tempestividade na homologação | `siconfi_extrato_entregas` | Proporcional (entregas no prazo) | ✅ |
-| D1_00011 | Quantidade de retificações | `siconfi_extrato_entregas` | Penalidade: `max(0, 1 - n_RE × 0.16)` | ✅ |
-| D3_00001 | Resultado orçamentário — Anexo 01, 6° bim | `siconfi_rreo` | Binária | ✅ |
-| D3_00002 | Igualdade de despesas Anexo 01 × Anexo 02 | `siconfi_rreo` | Proporcional (períodos × tipos) | ✅ |
-| D3_00003 | Igualdade de despesas Anexo 01 × Anexo 06 | `siconfi_rreo` | Proporcional (períodos × categorias × tipos) | ✅ |
-| D3_00007 | Igualdade de receitas Anexo 01 × Anexo 06 | `siconfi_rreo` | Proporcional (períodos × categorias × tipos) | ✅ |
+| Código | Título | Fonte | Tipo de Nota | Detalhamento | Status |
+|---|---|---|---|---|---|
+| D1_00001 | Homologação de todos os RREOs | `siconfi_extrato_entregas` | Proporcional (bimestres/semestres entregues) | Por entregável | ✅ |
+| D1_00006 | Tempestividade na homologação | `siconfi_extrato_entregas` | Proporcional (entregas no prazo) | Por entregável | ✅ |
+| D1_00011 | Quantidade de retificações | `siconfi_extrato_entregas` | Penalidade: `max(0, 1 - n_RE × 0.16)` | Por retificação | ✅ |
+| D3_00001 | Resultado orçamentário — Anexo 01, 6° bim | `siconfi_rreo` | Binária | Valor apurado vs zero | ✅ |
+| D3_00002 | Igualdade de despesas Anexo 01 × Anexo 02 | `siconfi_rreo` | Proporcional (períodos × tipos) | Por período e tipo | ✅ |
+| D3_00003 | Igualdade de despesas Anexo 01 × Anexo 06 | `siconfi_rreo` | Proporcional (períodos × categorias × tipos) | Por período e categoria | ✅ |
+| D3_00007 | Igualdade de receitas Anexo 01 × Anexo 06 | `siconfi_rreo` | Proporcional (períodos × categorias × tipos) | Por período e categoria | ✅ |
+| D3_00012 | Valores negativos inválidos no RREO | `siconfi_rreo` | Proporcional (ocorrências inválidas) | Por linha (anexo, conta, coluna, valor) | ✅ |
+| D3_00017 | RP pagos — Anexo 06 × Anexo 07 | `siconfi_rreo` | Binária (0 se qualquer período falhar) | **Por período × componente** (grade An06\|An07) | ✅ |
+| D3_00027 | Dotação/Empenhos/Liquidações — Anexo 01 × Anexo 06 | `siconfi_rreo` | Proporcional (períodos × blocos × colunas) | Por período e coluna | ✅ |
+
+#### Notas de implementação — D3_00017
+
+- **Fonte An06:** `RREO6TotalDespesaPrimaria` (PAGOS c + RP PROC. PAGOS b) + `RREO6JurosEEncargosDaDivida` (idem).
+  Não usar `DespesasCorrentesExcetoFontesRPPS` + `DespesasDeCapitalExcetoFontesRPPS` — essas contas
+  excluem RP pagos com fontes RPPS, gerando divergência sistemática.
+- **Fonte An07:** `RestosAPagarNaoProcessadosPagos` (Pagos i) + `RestosAPagarProcessadosENaoProcessadosLiquidadosPagos` (Pagos c).
+  Excluir explicitamente as variantes `*Intra` — municípios nota 1 também possuem An07 Intra, confirmando que não entram na comparação.
+- **Escopo:** todos os períodos (1–6). Nota = 0 se qualquer período divergir.
+  Municípios que pagam RP de exercícios anteriores sem correspondência no An06 ficam inconsistentes nos bimestres intermediários.
+- **Detalhamento:** grade lado a lado An06 | An07 por período, com `cod_conta`, `coluna` e valor de cada componente
+  (zeros exibidos em cinza para indicar conta ausente no relatório).
 
 ### Pendentes (Fase 1)
 
-D3_00002, D3_00012, D3_00017, D3_00027, D3_00028, D3_00030, D3_00032, D3_00033,
-D3_00034, D3_00035, D3_00037, D3_00038, D3_00039, D3_00040, D3_00044, D3_00045
+D3_00028, D3_00030, D3_00032, D3_00033, D3_00034, D3_00035,
+D3_00037, D3_00038, D3_00039, D3_00040, D3_00044, D3_00045
 
 ---
 
