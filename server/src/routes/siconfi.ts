@@ -1484,7 +1484,7 @@ async function verificarD3_00012(
 
   if (invalidos === 0) {
     return {
-      status: "aviso", nota: 1, nota_max: 1,
+      status: "consistente", nota: 1, nota_max: 1,
       resumo: `${total} combinação(ões) com valor negativo, todas enquadradas em exceções permitidas (saldo, resultado, meta fiscal).`,
       detalhes,
     };
