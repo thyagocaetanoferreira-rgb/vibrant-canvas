@@ -1465,13 +1465,13 @@ async function verificarD3_00012(
 }
 
 // ── D3_00017: RP pagos — Anexo 06 × Anexo 07 ────────────────────────────────
-// Total_Anexo_06 = Σ(An06 DespesasCorrentesExcetoFontesRPPS RP PROC. PAGOS (b))
-//               + Σ(An06 DespesasCorrentesExcetoFontesRPPS PAGOS (c))
-//               + Σ(An06 DespesasDeCapitalExcetoFontesRPPS RP PROC. PAGOS (b))
-//               + Σ(An06 DespesasDeCapitalExcetoFontesRPPS PAGOS (c))
-// Total_Anexo_07 = Σ(An07 RestosAPagarProcessadosENaoProcessadosLiquidadosPagos Pagos (c))
-//               + Σ(An07 RestosAPagarNaoProcessadosPagos Pagos (i))
-// Regra: Total_Anexo_06 = Total_Anexo_07 (por contexto período/periodicidade/demonstrativo/rotulo)
+// Total_Anexo_06 = Σ(An06 RREO6TotalDespesaPrimaria PAGOS (c))
+//               + Σ(An06 RREO6TotalDespesaPrimaria RESTOS A PAGAR PROCESSADOS PAGOS (b))
+//               + Σ(An06 RREO6JurosEEncargosDaDivida PAGOS (c))           [0 se ausente]
+//               + Σ(An06 RREO6JurosEEncargosDaDivida RESTOS A PAGAR PROCESSADOS PAGOS (b)) [0 se ausente]
+// Total_Anexo_07 = Σ(An07 RestosAPagarNaoProcessadosPagos Pagos (i))        [excl. Intra]
+//               + Σ(An07 RestosAPagarProcessadosENaoProcessadosLiquidadosPagos Pagos (c))  [excl. Intra]
+// Regra: avalia TODOS os períodos; nota = 0 se qualquer período divergir
 async function verificarD3_00017(
   municipioId: number, _codIbge: string, ano: number,
 ): Promise<Partial<ResultadoVerificacao>> {
@@ -1485,10 +1485,10 @@ async function verificarD3_00017(
      WHERE municipio_id = $1
        AND exercicio = $2
        AND (
-         (anexo = 'RREO-Anexo 06' AND cod_conta = 'DespesasCorrentesExcetoFontesRPPS'                        AND coluna = 'RESTOS A PAGAR PROCESSADOS PAGOS (b)')
-         OR (anexo = 'RREO-Anexo 06' AND cod_conta = 'DespesasCorrentesExcetoFontesRPPS'                     AND coluna = 'PAGOS (c)')
-         OR (anexo = 'RREO-Anexo 06' AND cod_conta = 'DespesasDeCapitalExcetoFontesRPPS'                     AND coluna = 'RESTOS A PAGAR PROCESSADOS PAGOS (b)')
-         OR (anexo = 'RREO-Anexo 06' AND cod_conta = 'DespesasDeCapitalExcetoFontesRPPS'                     AND coluna = 'PAGOS (c)')
+         (anexo = 'RREO-Anexo 06' AND cod_conta = 'RREO6TotalDespesaPrimaria'   AND coluna = 'PAGOS (c)')
+         OR (anexo = 'RREO-Anexo 06' AND cod_conta = 'RREO6TotalDespesaPrimaria'   AND coluna = 'RESTOS A PAGAR PROCESSADOS PAGOS (b)')
+         OR (anexo = 'RREO-Anexo 06' AND cod_conta = 'RREO6JurosEEncargosDaDivida' AND coluna = 'PAGOS (c)')
+         OR (anexo = 'RREO-Anexo 06' AND cod_conta = 'RREO6JurosEEncargosDaDivida' AND coluna = 'RESTOS A PAGAR PROCESSADOS PAGOS (b)')
          OR (anexo = 'RREO-Anexo 07' AND cod_conta = 'RestosAPagarProcessadosENaoProcessadosLiquidadosPagos' AND coluna = 'Pagos (c)')
          OR (anexo = 'RREO-Anexo 07' AND cod_conta = 'RestosAPagarNaoProcessadosPagos'                       AND coluna = 'Pagos (i)')
        )
@@ -1505,9 +1505,8 @@ async function verificarD3_00017(
   }
 
   // Agrupar por chave de contexto
-  type CtxKey = string;
   type CtxMeta = { periodo: number; periodicidade: string; demonstrativo: string; rotulo: string };
-  const ctxMeta = new Map<CtxKey, CtxMeta>();
+  const ctxMeta = new Map<string, CtxMeta>();
   const idx = new Map<string, number>();
 
   for (const d of rows) {
@@ -1535,16 +1534,16 @@ async function verificarD3_00017(
       idx.get(`${ctxKey}|${anexo}|${cod_conta}|${coluna}`) ?? 0;
 
     // Componentes do Anexo 06
-    const an06_correntes_rpp = get("RREO-Anexo 06", "DespesasCorrentesExcetoFontesRPPS", "RESTOS A PAGAR PROCESSADOS PAGOS (b)");
-    const an06_correntes_pag = get("RREO-Anexo 06", "DespesasCorrentesExcetoFontesRPPS", "PAGOS (c)");
-    const an06_capital_rpp   = get("RREO-Anexo 06", "DespesasDeCapitalExcetoFontesRPPS",  "RESTOS A PAGAR PROCESSADOS PAGOS (b)");
-    const an06_capital_pag   = get("RREO-Anexo 06", "DespesasDeCapitalExcetoFontesRPPS",  "PAGOS (c)");
+    const an06_total_pag   = get("RREO-Anexo 06", "RREO6TotalDespesaPrimaria",   "PAGOS (c)");
+    const an06_total_rpp   = get("RREO-Anexo 06", "RREO6TotalDespesaPrimaria",   "RESTOS A PAGAR PROCESSADOS PAGOS (b)");
+    const an06_juros_pag   = get("RREO-Anexo 06", "RREO6JurosEEncargosDaDivida", "PAGOS (c)");
+    const an06_juros_rpp   = get("RREO-Anexo 06", "RREO6JurosEEncargosDaDivida", "RESTOS A PAGAR PROCESSADOS PAGOS (b)");
 
-    // Componentes do Anexo 07
+    // Componentes do Anexo 07 (excluindo Intra-orçamentárias)
     const an07_proc_pag    = get("RREO-Anexo 07", "RestosAPagarProcessadosENaoProcessadosLiquidadosPagos", "Pagos (c)");
-    const an07_naoproc_pag = get("RREO-Anexo 07", "RestosAPagarNaoProcessadosPagos", "Pagos (i)");
+    const an07_naoproc_pag = get("RREO-Anexo 07", "RestosAPagarNaoProcessadosPagos",                       "Pagos (i)");
 
-    const total_anexo_06 = an06_correntes_rpp + an06_correntes_pag + an06_capital_rpp + an06_capital_pag;
+    const total_anexo_06 = an06_total_pag + an06_total_rpp + an06_juros_pag + an06_juros_rpp;
     const total_anexo_07 = an07_proc_pag + an07_naoproc_pag;
 
     totalContextos++;
@@ -1559,10 +1558,10 @@ async function verificarD3_00017(
       diferenca: total_anexo_06 - total_anexo_07,
       ok,
       componentes_06: [
-        { cod_conta: "DespesasCorrentesExcetoFontesRPPS", coluna: "RESTOS A PAGAR PROCESSADOS PAGOS (b)", valor: an06_correntes_rpp },
-        { cod_conta: "DespesasCorrentesExcetoFontesRPPS", coluna: "PAGOS (c)",                            valor: an06_correntes_pag },
-        { cod_conta: "DespesasDeCapitalExcetoFontesRPPS", coluna: "RESTOS A PAGAR PROCESSADOS PAGOS (b)", valor: an06_capital_rpp },
-        { cod_conta: "DespesasDeCapitalExcetoFontesRPPS", coluna: "PAGOS (c)",                            valor: an06_capital_pag },
+        { cod_conta: "RREO6TotalDespesaPrimaria",   coluna: "PAGOS (c)",                            valor: an06_total_pag },
+        { cod_conta: "RREO6TotalDespesaPrimaria",   coluna: "RESTOS A PAGAR PROCESSADOS PAGOS (b)", valor: an06_total_rpp },
+        { cod_conta: "RREO6JurosEEncargosDaDivida", coluna: "PAGOS (c)",                            valor: an06_juros_pag },
+        { cod_conta: "RREO6JurosEEncargosDaDivida", coluna: "RESTOS A PAGAR PROCESSADOS PAGOS (b)", valor: an06_juros_rpp },
       ],
       componentes_07: [
         { cod_conta: "RestosAPagarProcessadosENaoProcessadosLiquidadosPagos", coluna: "Pagos (c)", valor: an07_proc_pag },
@@ -1579,7 +1578,6 @@ async function verificarD3_00017(
     };
   }
 
-  const nota = parseFloat((contextosOk / totalContextos).toFixed(4));
   const inconsistentes = totalContextos - contextosOk;
 
   if (inconsistentes === 0) {
