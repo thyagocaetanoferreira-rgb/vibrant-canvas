@@ -381,6 +381,350 @@ function DetalhesD3_00003({ detalhes }: { detalhes: any[] }) {
   );
 }
 
+// ── Detalhes D3_00027: Dotação / Empenhos / Liquidações — Anexo 01 × Anexo 06 ─
+
+function DetalhesD3_00027({ detalhes }: { detalhes: any[] }) {
+  if (!detalhes.length) return <p className="text-xs text-[#045ba3]/70 p-3">Sem detalhes disponíveis.</p>;
+  const fmt = (v: number | null) =>
+    v === null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="bg-[#e3eef6]/50 hover:bg-[#e3eef6]/50">
+          <TableHead className="text-xs font-semibold text-[#033e66]">Período</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66]">Bloco</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66]">Grupo</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Anexo 06</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Anexo 01</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Diferença</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-center">Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {detalhes.map((d: any, i: number) => (
+          <TableRow key={i} className={!d.ok ? "bg-[#ef444408] hover:bg-[#ef444412]" : "hover:bg-[#e3eef6]/30"}>
+            <TableCell className="text-sm text-[#045ba3] font-medium whitespace-nowrap">{d.label}</TableCell>
+            <TableCell className="text-xs whitespace-nowrap">
+              <span className={`font-semibold ${d.bloco === "Capital" ? "text-[#b45309]" : "text-[#045ba3]"}`}>
+                {d.bloco}
+              </span>
+            </TableCell>
+            <TableCell className="text-xs text-[#045ba3]">
+              <span className="font-semibold">{d.nome}</span>
+              <br />
+              <span className="text-[#6b7280]">{d.descricao_an06}</span>
+              <br />
+              <span className="text-[#6b7280]">{d.descricao_an01}</span>
+            </TableCell>
+            <TableCell className="text-sm text-right font-mono text-[#045ba3]">{fmt(d.valor_an06)}</TableCell>
+            <TableCell className="text-sm text-right font-mono text-[#045ba3]">{fmt(d.valor_an01)}</TableCell>
+            <TableCell className={`text-sm text-right font-mono font-semibold ${
+              d.diferenca === null ? "text-[#6b7280]"
+              : Math.abs(d.diferenca) <= 1.00 ? "text-[#059669]"
+              : "text-[#ef4444]"
+            }`}>
+              {d.diferenca === null ? "—" : fmt(d.diferenca)}
+            </TableCell>
+            <TableCell className="text-center">
+              {d.ok
+                ? <span className="text-[#059669] font-bold text-xs">✓ Igual</span>
+                : <span className="text-[#ef4444] font-bold text-xs">✗ Diverge</span>}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+// ── Detalhes D3_00040: Operações de Crédito — Anexo 01 × Anexo 09 ───────────
+
+function DetalhesD3_00040({ detalhes }: { detalhes: any[] }) {
+  if (!detalhes.length) return <p className="text-xs text-[#045ba3]/70 p-3">Sem detalhes disponíveis.</p>;
+  const fmt = (v: number | null) =>
+    v === null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="bg-[#e3eef6]/50 hover:bg-[#e3eef6]/50">
+          <TableHead className="text-xs font-semibold text-[#033e66]">Comparação</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Anexo 09</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Anexo 01</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Diferença</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-center">Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {detalhes.map((d: any, i: number) => (
+          <TableRow key={i} className={!d.ok ? "bg-[#ef444408] hover:bg-[#ef444412]" : "hover:bg-[#e3eef6]/30"}>
+            <TableCell className="text-xs text-[#045ba3]">
+              <span className="font-semibold">{d.nome}</span>
+              <br />
+              <span className="text-[#6b7280]">{d.descricao_an09}</span>
+              <br />
+              <span className="text-[#6b7280]">{d.descricao_an01}</span>
+            </TableCell>
+            <TableCell className="text-sm text-right font-mono text-[#045ba3]">{fmt(d.valor_an09)}</TableCell>
+            <TableCell className="text-sm text-right font-mono text-[#045ba3]">{fmt(d.valor_an01)}</TableCell>
+            <TableCell className={`text-sm text-right font-mono font-semibold ${
+              d.diferenca === null ? "text-[#6b7280]"
+              : Math.abs(d.diferenca) <= 1.00 ? "text-[#059669]"
+              : "text-[#ef4444]"
+            }`}>
+              {d.diferenca === null ? "—" : fmt(d.diferenca)}
+            </TableCell>
+            <TableCell className="text-center">
+              {d.ok
+                ? <span className="text-[#059669] font-bold text-xs">✓ Igual</span>
+                : <span className="text-[#ef4444] font-bold text-xs">✗ Diverge</span>}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+// ── Detalhes D3_00030: Receitas RPPS — Anexo 04 × Anexo 06 ──────────────────
+
+function DetalhesD3_00030({ detalhes }: { detalhes: any[] }) {
+  if (!detalhes.length) return <p className="text-xs text-[#045ba3]/70 p-3">Sem detalhes disponíveis.</p>;
+  const fmt = (v: number | null) =>
+    v === null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const LABELS: Record<string, string> = {
+    ReceitasPrimariasCorrentesComFontesRPPS:       "Rec. Primárias Correntes RPPS",
+    ReceitasNaoPrimariasCorrentesComFontesRPPS:    "Rec. Não-Primárias Correntes RPPS",
+    ReceitasPrimariasDeCapitalComFontesRPPS:       "Rec. Primárias de Capital RPPS",
+    ReceitasNaoPrimariasDeCapitalComFontesRPPS:    "Rec. Não-Primárias de Capital RPPS",
+  };
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="bg-[#e3eef6]/50 hover:bg-[#e3eef6]/50">
+          <TableHead className="text-xs font-semibold text-[#033e66]">Período</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Anexo 04 (total)</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Soma Anexo 06</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66]">Componentes An06</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Diferença</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-center">Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {detalhes.map((d: any, i: number) => (
+          <TableRow key={i} className={!d.ok ? "bg-[#ef444408] hover:bg-[#ef444412]" : "hover:bg-[#e3eef6]/30"}>
+            <TableCell className="text-sm text-[#045ba3] font-medium whitespace-nowrap">{d.label}</TableCell>
+            <TableCell className="text-sm text-right font-mono font-semibold text-[#045ba3]">{fmt(d.valor_an04)}</TableCell>
+            <TableCell className="text-sm text-right font-mono font-semibold text-[#045ba3]">{fmt(d.soma_an06)}</TableCell>
+            <TableCell className="text-xs text-[#6b7280]">
+              {(d.componentes as any[]).map((c: any) => (
+                <div key={c.cod_conta}>{LABELS[c.cod_conta] ?? c.cod_conta}: {fmt(c.valor)}</div>
+              ))}
+            </TableCell>
+            <TableCell className={`text-sm text-right font-mono font-semibold ${
+              Math.abs(d.diferenca) <= 1.00 ? "text-[#059669]" : "text-[#ef4444]"
+            }`}>
+              {fmt(d.diferenca)}
+            </TableCell>
+            <TableCell className="text-center">
+              {d.ok
+                ? <span className="text-[#059669] font-bold text-xs">✓ Igual</span>
+                : <span className="text-[#ef4444] font-bold text-xs">✗ Diverge</span>}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+// ── Detalhes D3_00045: Valores negativos em Restos a Pagar ───────────────────
+
+function DetalhesD3_00045({ detalhes }: { detalhes: any[] }) {
+  if (!detalhes.length) return <p className="text-xs text-[#045ba3]/70 p-3">Sem detalhes disponíveis.</p>;
+  const fmt = (v: number | null) =>
+    v === null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="bg-[#e3eef6]/50 hover:bg-[#e3eef6]/50">
+          <TableHead className="text-xs font-semibold text-[#033e66]">Período</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66]">Anexo</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66]">Conta</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66]">Coluna</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Valor</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-center">Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {detalhes.map((d: any, i: number) => (
+          <TableRow key={i} className={!d.ok ? "bg-[#ef444408] hover:bg-[#ef444412]" : "hover:bg-[#e3eef6]/30"}>
+            <TableCell className="text-sm text-[#045ba3] font-medium whitespace-nowrap">{d.label}</TableCell>
+            <TableCell className="text-sm text-[#045ba3] whitespace-nowrap">{d.anexo}</TableCell>
+            <TableCell className="text-xs text-[#045ba3] max-w-[200px] truncate" title={d.conta || d.cod_conta}>
+              {d.conta || d.cod_conta}
+            </TableCell>
+            <TableCell className="text-xs text-[#045ba3] max-w-[180px] truncate" title={d.coluna}>
+              {d.coluna}
+            </TableCell>
+            <TableCell className="text-sm text-right font-mono font-semibold text-[#ef4444]">
+              {fmt(d.valor)}
+            </TableCell>
+            <TableCell className="text-center whitespace-nowrap">
+              {d.ok
+                ? <span className="text-[#b45309] font-bold text-xs">⚠ Exceção</span>
+                : <span className="text-[#ef4444] font-bold text-xs">✗ Inválido</span>}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+// ── Detalhes D3_00028: Receitas Realizadas — Anexo 01 × Anexo 06 ─────────────
+
+function DetalhesD3_00028({ detalhes }: { detalhes: any[] }) {
+  if (!detalhes.length) return <p className="text-xs text-[#045ba3]/70 p-3">Sem detalhes disponíveis.</p>;
+  const fmt = (v: number | null) =>
+    v === null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="bg-[#e3eef6]/50 hover:bg-[#e3eef6]/50">
+          <TableHead className="text-xs font-semibold text-[#033e66]">Período</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66]">Grupo</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Anexo 06</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Anexo 01</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Diferença</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-center">Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {detalhes.map((d: any, i: number) => (
+          <TableRow key={i} className={!d.ok ? "bg-[#ef444408] hover:bg-[#ef444412]" : "hover:bg-[#e3eef6]/30"}>
+            <TableCell className="text-sm text-[#045ba3] font-medium whitespace-nowrap">{d.label}</TableCell>
+            <TableCell className="text-xs text-[#045ba3]">
+              <span className="font-semibold">{d.nome}</span>
+              <br />
+              <span className="text-[#6b7280]">{d.descricao_an06}</span>
+              <br />
+              <span className="text-[#6b7280]">{d.descricao_an01}</span>
+            </TableCell>
+            <TableCell className="text-sm text-right font-mono text-[#045ba3]">{fmt(d.valor_an06)}</TableCell>
+            <TableCell className="text-sm text-right font-mono text-[#045ba3]">{fmt(d.valor_an01)}</TableCell>
+            <TableCell className={`text-sm text-right font-mono font-semibold ${
+              d.diferenca === null ? "text-[#6b7280]"
+              : Math.abs(d.diferenca) <= 1.00 ? "text-[#059669]"
+              : "text-[#ef4444]"
+            }`}>
+              {d.diferenca === null ? "—" : fmt(d.diferenca)}
+            </TableCell>
+            <TableCell className="text-center">
+              {d.ok
+                ? <span className="text-[#059669] font-bold text-xs">✓ Igual</span>
+                : <span className="text-[#ef4444] font-bold text-xs">✗ Diverge</span>}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+// ── Detalhes D3_00017: RP Pagos — Anexo 06 × Anexo 07 ────────────────────────
+
+function DetalhesD3_00017({ detalhes }: { detalhes: any[] }) {
+  if (!detalhes.length) return <p className="text-xs text-[#045ba3]/70 p-3">Sem detalhes disponíveis.</p>;
+  const fmt = (v: number | null) =>
+    v === null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="bg-[#e3eef6]/50 hover:bg-[#e3eef6]/50">
+          <TableHead className="text-xs font-semibold text-[#033e66]">Período</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66]">Comparação</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Esquerda (An06/07)</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Direita (An07/06)</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Diferença</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-center">Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {detalhes.map((d: any, i: number) => (
+          <TableRow key={i} className={!d.ok ? "bg-[#ef444408] hover:bg-[#ef444412]" : "hover:bg-[#e3eef6]/30"}>
+            <TableCell className="text-sm text-[#045ba3] font-medium whitespace-nowrap">{d.label}</TableCell>
+            <TableCell className="text-xs text-[#045ba3]">
+              <span className="font-semibold">{d.comparacao}</span>
+              <br />
+              <span className="text-[#6b7280]">{d.descricao_esquerda}</span>
+              <br />
+              <span className="text-[#6b7280]">{d.descricao_direita}</span>
+            </TableCell>
+            <TableCell className="text-sm text-right font-mono text-[#045ba3]">{fmt(d.valor_esquerda)}</TableCell>
+            <TableCell className="text-sm text-right font-mono text-[#045ba3]">{fmt(d.valor_direita)}</TableCell>
+            <TableCell className={`text-sm text-right font-mono font-semibold ${
+              d.diferenca === null ? "text-[#6b7280]"
+              : Math.abs(d.diferenca) <= 0.02 ? "text-[#059669]"
+              : "text-[#ef4444]"
+            }`}>
+              {d.diferenca === null ? "—" : fmt(d.diferenca)}
+            </TableCell>
+            <TableCell className="text-center">
+              {d.ok
+                ? <span className="text-[#059669] font-bold text-xs">✓ Igual</span>
+                : <span className="text-[#ef4444] font-bold text-xs">✗ Diverge</span>}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+// ── Detalhes D3_00012: Valores negativos inválidos no RREO ────────────────────
+
+function DetalhesD3_00012({ detalhes }: { detalhes: any[] }) {
+  if (!detalhes.length) return <p className="text-xs text-[#045ba3]/70 p-3">Sem detalhes disponíveis.</p>;
+  const fmt = (v: number | null) =>
+    v === null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="bg-[#e3eef6]/50 hover:bg-[#e3eef6]/50">
+          <TableHead className="text-xs font-semibold text-[#033e66]">Período</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66]">Anexo</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66]">Conta</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66]">Coluna</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Valor</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-center">Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {detalhes.map((d: any, i: number) => (
+          <TableRow key={i} className={!d.ok ? "bg-[#ef444408] hover:bg-[#ef444412]" : "hover:bg-[#e3eef6]/30"}>
+            <TableCell className="text-sm text-[#045ba3] font-medium whitespace-nowrap">{d.label}</TableCell>
+            <TableCell className="text-sm text-[#045ba3] whitespace-nowrap">{d.anexo}</TableCell>
+            <TableCell className="text-xs text-[#045ba3] max-w-[200px] truncate" title={d.conta || d.cod_conta}>
+              {d.conta || d.cod_conta}
+            </TableCell>
+            <TableCell className="text-xs text-[#045ba3] max-w-[180px] truncate" title={d.coluna}>
+              {d.coluna}
+            </TableCell>
+            <TableCell className="text-sm text-right font-mono font-semibold text-[#ef4444]">
+              {fmt(d.valor)}
+            </TableCell>
+            <TableCell className="text-center whitespace-nowrap">
+              {d.ok
+                ? <span className="text-[#b45309] font-bold text-xs">⚠ Exceção</span>
+                : <span className="text-[#ef4444] font-bold text-xs">✗ Inválido</span>}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
 const DETALHE_COMPONENTE: Record<string, React.ComponentType<{ detalhes: any[] }>> = {
   "D1_00001": DetalhesD1_00001,
   "D1_00006": DetalhesD1_00006,
@@ -390,6 +734,13 @@ const DETALHE_COMPONENTE: Record<string, React.ComponentType<{ detalhes: any[] }
   "D3_00003": DetalhesD3_00003,
   // D3_00007 usa o mesmo layout de tabela que D3_00003 (Período, Categoria, Tipo, An01, An06, Dif, Status)
   "D3_00007": DetalhesD3_00003,
+  "D3_00012": DetalhesD3_00012,
+  "D3_00017": DetalhesD3_00017,
+  "D3_00027": DetalhesD3_00027,
+  "D3_00028": DetalhesD3_00028,
+  "D3_00030": DetalhesD3_00030,
+  "D3_00040": DetalhesD3_00040,
+  "D3_00045": DetalhesD3_00045,
 };
 
 function DetalhesGenericos({ detalhes }: { detalhes: any[] }) {

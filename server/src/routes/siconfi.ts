@@ -1049,20 +1049,22 @@ async function verificarD3_00002(municipioId: number, _codIbge: string, ano: num
     idx.set(`${d.periodo}|${d.anexo}|${d.coluna}`, d.valor ?? 0);
   }
 
-  const TOLERANCIA = 0.02;
+  const TOLERANCIA = 1.00;
   const detalhes: object[] = [];
   let totalComparacoes = 0;
   let comparacoesOk = 0;
 
   for (const periodo of periodos) {
     for (const cmp of comparacoes) {
-      const vAn02 = idx.get(`${periodo}|RREO-Anexo 02|${cmp.colAn02}`) ?? null;
-      const vAn01 = idx.get(`${periodo}|RREO-Anexo 01|${cmp.colAn01}`) ?? null;
+      const keyAn02 = `${periodo}|RREO-Anexo 02|${cmp.colAn02}`;
+      const keyAn01 = `${periodo}|RREO-Anexo 01|${cmp.colAn01}`;
+      if (!idx.has(keyAn02) && !idx.has(keyAn01)) continue; // sem dados neste ponto
 
-      if (vAn02 === null && vAn01 === null) continue; // período sem dados neste tipo
+      const vAn02 = idx.get(keyAn02) ?? 0;
+      const vAn01 = idx.get(keyAn01) ?? 0;
 
       totalComparacoes++;
-      const igualou = vAn02 !== null && vAn01 !== null && Math.abs(vAn02 - vAn01) <= TOLERANCIA;
+      const igualou = Math.abs(vAn02 - vAn01) <= TOLERANCIA;
       if (igualou) comparacoesOk++;
 
       detalhes.push({
@@ -1071,7 +1073,7 @@ async function verificarD3_00002(municipioId: number, _codIbge: string, ano: num
         tipo: cmp.tipo,
         valor_anexo01: vAn01,
         valor_anexo02: vAn02,
-        diferenca: vAn01 !== null && vAn02 !== null ? vAn02 - vAn01 : null,
+        diferenca: vAn02 - vAn01,
         ok: igualou,
       });
     }
@@ -1097,14 +1099,23 @@ async function verificarD3_00002(municipioId: number, _codIbge: string, ano: num
   }
 
   return {
-    status: "inconsistente", nota, nota_max: 1,
+    status: "inconsistente", nota: 0, nota_max: 1,
     resumo: `${inconsistentes} de ${totalComparacoes} comparações com divergência entre Anexo 01 e Anexo 02.`,
     detalhes,
   };
 }
 
 // ── D3_00003: Igualdade de despesas entre Anexo 01 e Anexo 06 ────────────────
+// Vigência: 2019–2021. A partir de 2022 o SICONFI não executa mais esta verificação.
 async function verificarD3_00003(municipioId: number, _codIbge: string, ano: number): Promise<Partial<ResultadoVerificacao>> {
+  if (ano < 2019 || ano > 2021) {
+    return {
+      status: "nao_aplicavel", nota: 0, nota_max: 1,
+      resumo: `Regra vigente apenas para os exercícios de 2019 a 2021. A partir de 2022, o SICONFI não executa mais esta verificação (exercício selecionado: ${ano}).`,
+      detalhes: [],
+    };
+  }
+
   // Uma única query busca tudo: An01 (Correntes+Capital × 3 colunas) + An06 (idem)
   const { rows } = await db.query<{
     periodo: number; anexo: string; cod_conta: string; coluna: string; valor: number;
@@ -1170,7 +1181,7 @@ async function verificarD3_00003(municipioId: number, _codIbge: string, ano: num
     },
   ];
 
-  const TOLERANCIA = 0.02;
+  const TOLERANCIA = 1.00;
   const detalhes: object[] = [];
   let totalComparacoes = 0;
   let comparacoesOk = 0;
@@ -1178,13 +1189,15 @@ async function verificarD3_00003(municipioId: number, _codIbge: string, ano: num
   for (const periodo of Array.from(periodos).sort()) {
     for (const { categoria, contaAn01, contaAn06, tipos } of comparacoes) {
       for (const { tipo, colAn01, colAn06 } of tipos) {
-        const vAn01 = idx.get(`${periodo}|RREO-Anexo 01|${contaAn01}|${colAn01}`) ?? null;
-        const vAn06 = idx.get(`${periodo}|RREO-Anexo 06|${contaAn06}|${colAn06}`) ?? null;
+        const keyAn01 = `${periodo}|RREO-Anexo 01|${contaAn01}|${colAn01}`;
+        const keyAn06 = `${periodo}|RREO-Anexo 06|${contaAn06}|${colAn06}`;
+        if (!idx.has(keyAn01) && !idx.has(keyAn06)) continue;
 
-        if (vAn01 === null && vAn06 === null) continue; // sem dados para este ponto
+        const vAn01 = idx.get(keyAn01) ?? 0;
+        const vAn06 = idx.get(keyAn06) ?? 0;
 
         totalComparacoes++;
-        const igualou = vAn01 !== null && vAn06 !== null && Math.abs(vAn01 - vAn06) <= TOLERANCIA;
+        const igualou = Math.abs(vAn01 - vAn06) <= TOLERANCIA;
         if (igualou) comparacoesOk++;
 
         detalhes.push({
@@ -1194,7 +1207,7 @@ async function verificarD3_00003(municipioId: number, _codIbge: string, ano: num
           tipo,
           valor_anexo01: vAn01,
           valor_anexo06: vAn06,
-          diferenca: vAn01 !== null && vAn06 !== null ? vAn06 - vAn01 : null,
+          diferenca: vAn06 - vAn01,
           ok: igualou,
         });
       }
@@ -1222,14 +1235,23 @@ async function verificarD3_00003(municipioId: number, _codIbge: string, ano: num
   }
 
   return {
-    status: "inconsistente", nota, nota_max: 1,
+    status: "inconsistente", nota: 0, nota_max: 1,
     resumo: `${inconsistentes} de ${totalComparacoes} comparações com divergência entre Anexo 01 e Anexo 06.`,
     detalhes,
   };
 }
 
 // ── D3_00007: Igualdade de receitas (previsão + realizado) entre Anexo 01 e 06 ─
+// Vigência: 2019–2022. A partir de 2023 o SICONFI não executa mais esta verificação.
 async function verificarD3_00007(municipioId: number, _codIbge: string, ano: number): Promise<Partial<ResultadoVerificacao>> {
+  if (ano < 2019 || ano > 2022) {
+    return {
+      status: "nao_aplicavel", nota: 0, nota_max: 1,
+      resumo: `Regra vigente apenas para os exercícios de 2019 a 2022. A partir de 2023, o SICONFI não executa mais esta verificação (exercício selecionado: ${ano}).`,
+      detalhes: [],
+    };
+  }
+
   const { rows } = await db.query<{
     periodo: number; anexo: string; cod_conta: string; coluna: string; valor: number;
   }>(
@@ -1287,7 +1309,7 @@ async function verificarD3_00007(municipioId: number, _codIbge: string, ano: num
     },
   ];
 
-  const TOLERANCIA = 0.02;
+  const TOLERANCIA = 1.00;
   const detalhes: object[] = [];
   let totalComparacoes = 0;
   let comparacoesOk = 0;
@@ -1295,13 +1317,15 @@ async function verificarD3_00007(municipioId: number, _codIbge: string, ano: num
   for (const periodo of Array.from(periodos).sort()) {
     for (const { categoria, contaAn01, contaAn06, tipos } of comparacoes) {
       for (const { tipo, colAn01, colAn06 } of tipos) {
-        const vAn01 = idx.get(`${periodo}|RREO-Anexo 01|${contaAn01}|${colAn01}`) ?? null;
-        const vAn06 = idx.get(`${periodo}|RREO-Anexo 06|${contaAn06}|${colAn06}`) ?? null;
+        const keyAn01 = `${periodo}|RREO-Anexo 01|${contaAn01}|${colAn01}`;
+        const keyAn06 = `${periodo}|RREO-Anexo 06|${contaAn06}|${colAn06}`;
+        if (!idx.has(keyAn01) && !idx.has(keyAn06)) continue;
 
-        if (vAn01 === null && vAn06 === null) continue;
+        const vAn01 = idx.get(keyAn01) ?? 0;
+        const vAn06 = idx.get(keyAn06) ?? 0;
 
         totalComparacoes++;
-        const igualou = vAn01 !== null && vAn06 !== null && Math.abs(vAn01 - vAn06) <= TOLERANCIA;
+        const igualou = Math.abs(vAn01 - vAn06) <= TOLERANCIA;
         if (igualou) comparacoesOk++;
 
         detalhes.push({
@@ -1311,7 +1335,7 @@ async function verificarD3_00007(municipioId: number, _codIbge: string, ano: num
           tipo,
           valor_anexo01: vAn01,
           valor_anexo06: vAn06,
-          diferenca: vAn01 !== null && vAn06 !== null ? vAn06 - vAn01 : null,
+          diferenca: vAn06 - vAn01,
           ok: igualou,
         });
       }
@@ -1338,8 +1362,782 @@ async function verificarD3_00007(municipioId: number, _codIbge: string, ano: num
   }
 
   return {
-    status: "inconsistente", nota, nota_max: 1,
+    status: "inconsistente", nota: 0, nota_max: 1,
     resumo: `${inconsistentes} de ${totalComparacoes} comparações com divergência entre Anexo 01 e Anexo 06.`,
+    detalhes,
+  };
+}
+
+// ── D3_00012: Valores negativos inválidos no RREO ────────────────────────────
+// Regra geral: todo valor do RREO deve ser >= 0.
+// Exceções permitidas: saldo, resultado, meta fiscal, variação de saldo, projeção atuarial.
+function ehExcecaoNegativoRREO(coluna: string, cod_conta: string): boolean {
+  const col = coluna.toUpperCase();
+
+  // 1. Saldo
+  if (col.includes("SALDO")) return true;
+
+  // 2. Resultado (coluna)
+  if (col.includes("RESULTADO")) return true;
+
+  // 3. Meta fiscal (coluna)
+  if (col.includes("META FIXADA") || col.includes("META DE RESULTADO")) return true;
+
+  // 4. Variação de saldo (coluna)
+  if (col.includes("VARIA") && col.includes("SALDO")) return true;
+
+  // 5. Projeção atuarial / exercícios futuros
+  if (col === "EXERCÍCIO" || col === "EXERCICIO" ||
+      col.includes("º EXERCÍCIO") || col.includes("º EXERCICIO") ||
+      col.includes("° EXERCÍCIO") || col.includes("° EXERCICIO")) return true;
+
+  // 6. By cod_conta (camelCase): Resultado*, Variacao*, Meta*
+  if (cod_conta.includes("Resultado")) return true;
+  if (cod_conta.includes("Variacao") || cod_conta.includes("Variação")) return true;
+  if (cod_conta.includes("Meta")) return true;
+
+  return false;
+}
+
+async function verificarD3_00012(
+  municipioId: number, _codIbge: string, ano: number,
+): Promise<Partial<ResultadoVerificacao>> {
+  const { rows } = await db.query<{
+    periodo: number; anexo: string; cod_conta: string; conta: string;
+    coluna: string; valor: number; ocorrencias: number;
+  }>(
+    `SELECT periodo, anexo, cod_conta, MAX(conta) AS conta, coluna,
+            MIN(valor)::float AS valor, COUNT(*)::int AS ocorrencias
+     FROM siconfi_rreo
+     WHERE municipio_id = $1
+       AND exercicio = $2
+       AND rotulo = 'Padrão'
+       AND valor < 0
+     GROUP BY periodo, anexo, cod_conta, coluna
+     ORDER BY periodo, anexo, cod_conta, coluna`,
+    [municipioId, ano],
+  );
+
+  if (rows.length === 0) {
+    return {
+      status: "consistente", nota: 1, nota_max: 1,
+      resumo: "Nenhum valor negativo encontrado no RREO. Todos os valores são ≥ 0.",
+      detalhes: [],
+    };
+  }
+
+  const detalhes: object[] = [];
+  let invalidos = 0;
+
+  for (const d of rows) {
+    const excecao = ehExcecaoNegativoRREO(d.coluna, d.cod_conta);
+    if (!excecao) invalidos++;
+    detalhes.push({
+      periodo: d.periodo,
+      label: BIMESTRE_LABELS[d.periodo] ?? `Período ${d.periodo}`,
+      anexo: d.anexo,
+      cod_conta: d.cod_conta,
+      conta: d.conta,
+      coluna: d.coluna,
+      valor: d.valor,
+      ocorrencias: d.ocorrencias,
+      excecao,
+      ok: excecao,
+    });
+  }
+
+  const total = rows.length;
+  const nota = parseFloat(((total - invalidos) / total).toFixed(4));
+
+  if (invalidos === 0) {
+    return {
+      status: "aviso", nota: 1, nota_max: 1,
+      resumo: `${total} combinação(ões) com valor negativo, todas enquadradas em exceções permitidas (saldo, resultado, meta fiscal).`,
+      detalhes,
+    };
+  }
+
+  return {
+    status: "inconsistente", nota: 0, nota_max: 1,
+    resumo: `${invalidos} de ${total} combinação(ões) com valor negativo não enquadrado em exceção permitida.`,
+    detalhes,
+  };
+}
+
+// ── D3_00017: RP pagos — Anexo 06 × Anexo 07 ────────────────────────────────
+// Comparação 1: An07 RestosAPagarNaoProcessadosPagos "Pagos (i)"
+//               = An06 DespesasCorrentesExcetoFontesRPPS "PAGOS (c)"
+// Comparação 2: An06 DespesaPrimariaTotalExcetoFontesRPPS "RESTOS A PAGAR PROCESSADOS PAGOS (b)"
+//               = An07 RestosAPagarProcessadosENaoProcessadosLiquidadosPagos "Pagos (c)"
+async function verificarD3_00017(
+  municipioId: number, _codIbge: string, ano: number,
+): Promise<Partial<ResultadoVerificacao>> {
+  const { rows } = await db.query<{
+    periodo: number; anexo: string; cod_conta: string; coluna: string; valor: number;
+  }>(
+    `SELECT periodo, anexo, cod_conta, coluna, SUM(valor)::float AS valor
+     FROM siconfi_rreo
+     WHERE municipio_id = $1
+       AND exercicio = $2
+       AND rotulo = 'Padrão'
+       AND (
+         (anexo = 'RREO-Anexo 07' AND cod_conta = 'RestosAPagarNaoProcessadosPagos'                           AND coluna = 'Pagos (i)')
+         OR
+         (anexo = 'RREO-Anexo 06' AND cod_conta = 'DespesasCorrentesExcetoFontesRPPS'                          AND coluna = 'PAGOS (c)')
+         OR
+         (anexo = 'RREO-Anexo 06' AND cod_conta = 'DespesaPrimariaTotalExcetoFontesRPPS'                       AND coluna = 'RESTOS A PAGAR PROCESSADOS PAGOS (b)')
+         OR
+         (anexo = 'RREO-Anexo 07' AND cod_conta = 'RestosAPagarProcessadosENaoProcessadosLiquidadosPagos'      AND coluna = 'Pagos (c)')
+       )
+     GROUP BY periodo, anexo, cod_conta, coluna`,
+    [municipioId, ano],
+  );
+
+  if (rows.length === 0) {
+    return {
+      status: "nao_aplicavel", nota: 0, nota_max: 1,
+      resumo: "Nenhum dado dos Anexos 06 e 07 encontrado. Importe o RREO primeiro.",
+      detalhes: [],
+    };
+  }
+
+  const idx = new Map<string, number>();
+  const periodos = new Set<number>();
+  for (const d of rows) {
+    idx.set(`${d.periodo}|${d.anexo}|${d.cod_conta}|${d.coluna}`, d.valor ?? 0);
+    periodos.add(d.periodo);
+  }
+
+  const TOLERANCIA = 1.00; // diferenças de centavos são irrelevantes para a análise
+  const detalhes: object[] = [];
+  let totalComparacoes = 0;
+  let comparacoesOk = 0;
+
+  for (const periodo of Array.from(periodos).sort()) {
+    const label = BIMESTRE_LABELS[periodo] ?? `Período ${periodo}`;
+
+    // Comparação 1: An07 NaoProcessados Pagos (i) = An06 DespesasCorrentes PAGOS (c)
+    const key1_an07 = `${periodo}|RREO-Anexo 07|RestosAPagarNaoProcessadosPagos|Pagos (i)`;
+    const key1_an06 = `${periodo}|RREO-Anexo 06|DespesasCorrentesExcetoFontesRPPS|PAGOS (c)`;
+    if (idx.has(key1_an07) || idx.has(key1_an06)) {
+      const v1_an07 = idx.get(key1_an07) ?? 0;
+      const v1_an06 = idx.get(key1_an06) ?? 0;
+      totalComparacoes++;
+      const ok1 = Math.abs(v1_an07 - v1_an06) <= TOLERANCIA;
+      if (ok1) comparacoesOk++;
+      detalhes.push({
+        periodo, label,
+        comparacao: "RP Não Processados Pagos",
+        descricao_esquerda: "An07 — TOTAL (III) | Pagos (i)",
+        descricao_direita: "An06 — DESPESAS CORRENTES (EXCETO RPPS) | PAGOS (c)",
+        valor_esquerda: v1_an07,
+        valor_direita: v1_an06,
+        diferenca: v1_an07 - v1_an06,
+        ok: ok1,
+      });
+    }
+
+    // Comparação 2: An06 DespesaPrimaria RP PROCESSADOS PAGOS (b) = An07 Processados+NaoProcessados Pagos (c)
+    const key2_an06 = `${periodo}|RREO-Anexo 06|DespesaPrimariaTotalExcetoFontesRPPS|RESTOS A PAGAR PROCESSADOS PAGOS (b)`;
+    const key2_an07 = `${periodo}|RREO-Anexo 07|RestosAPagarProcessadosENaoProcessadosLiquidadosPagos|Pagos (c)`;
+    if (idx.has(key2_an06) || idx.has(key2_an07)) {
+      const v2_an06 = idx.get(key2_an06) ?? 0;
+      const v2_an07 = idx.get(key2_an07) ?? 0;
+      totalComparacoes++;
+      const ok2 = Math.abs(v2_an06 - v2_an07) <= TOLERANCIA;
+      if (ok2) comparacoesOk++;
+      detalhes.push({
+        periodo, label,
+        comparacao: "RP Processados Pagos",
+        descricao_esquerda: "An06 — DESPESA PRIMÁRIA TOTAL (EXCETO RPPS) | RP PROCESSADOS PAGOS (b)",
+        descricao_direita: "An07 — TOTAL (III) | Pagos (c)",
+        valor_esquerda: v2_an06,
+        valor_direita: v2_an07,
+        diferenca: v2_an06 - v2_an07,
+        ok: ok2,
+      });
+    }
+  }
+
+  if (totalComparacoes === 0) {
+    return {
+      status: "nao_aplicavel", nota: 0, nota_max: 1,
+      resumo: "Nenhum par comparável encontrado entre Anexo 06 e Anexo 07.",
+      detalhes: [],
+    };
+  }
+
+  const nota = parseFloat((comparacoesOk / totalComparacoes).toFixed(4));
+  const inconsistentes = totalComparacoes - comparacoesOk;
+
+  if (inconsistentes === 0) {
+    return {
+      status: "consistente", nota: 1, nota_max: 1,
+      resumo: `Todas as ${totalComparacoes} comparações consistentes entre Anexo 06 e Anexo 07 (${periodos.size} período(s)).`,
+      detalhes,
+    };
+  }
+
+  return {
+    status: "inconsistente", nota: 0, nota_max: 1,
+    resumo: `${inconsistentes} de ${totalComparacoes} comparações com divergência de RP pagos entre Anexo 06 e Anexo 07.`,
+    detalhes,
+  };
+}
+
+// ── D3_00027: Dotação Atualizada, Empenhos e Liquidações — Anexo 01 × Anexo 06 ─
+// Bloco A — Correntes: An06 DespesasCorrentesExcetoFontesRPPS ↔ An01 DespesasCorrentes
+// Bloco B — Capital:   An06 DespesasDeCapitalExcetoFontesRPPS ↔ An01 DespesasDeCapital
+// Colunas comparadas: DOTAÇÃO ATUALIZADA | DESPESAS EMPENHADAS | DESPESAS LIQUIDADAS
+async function verificarD3_00027(
+  municipioId: number, _codIbge: string, ano: number,
+): Promise<Partial<ResultadoVerificacao>> {
+  const { rows } = await db.query<{
+    periodo: number; anexo: string; cod_conta: string; coluna: string; valor: number;
+  }>(
+    `SELECT periodo, anexo, cod_conta, coluna, SUM(valor)::float AS valor
+     FROM siconfi_rreo
+     WHERE municipio_id = $1
+       AND exercicio = $2
+       AND rotulo = 'Padrão'
+       AND (
+         (anexo = 'RREO-Anexo 06' AND cod_conta = 'DespesasCorrentesExcetoFontesRPPS'
+           AND coluna IN ('DOTAÇÃO ATUALIZADA','DESPESAS EMPENHADAS','DESPESAS LIQUIDADAS'))
+         OR
+         (anexo = 'RREO-Anexo 01' AND cod_conta = 'DespesasCorrentes'
+           AND coluna IN ('DOTAÇÃO ATUALIZADA (e)','DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)','DESPESAS LIQUIDADAS ATÉ O BIMESTRE (h)'))
+         OR
+         (anexo = 'RREO-Anexo 06' AND cod_conta = 'DespesasDeCapitalExcetoFontesRPPS'
+           AND coluna IN ('DOTAÇÃO ATUALIZADA','DESPESAS EMPENHADAS','DESPESAS LIQUIDADAS'))
+         OR
+         (anexo = 'RREO-Anexo 01' AND cod_conta = 'DespesasDeCapital'
+           AND coluna IN ('DOTAÇÃO ATUALIZADA (e)','DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)','DESPESAS LIQUIDADAS ATÉ O BIMESTRE (h)'))
+       )
+     GROUP BY periodo, anexo, cod_conta, coluna`,
+    [municipioId, ano],
+  );
+
+  if (rows.length === 0) {
+    return {
+      status: "nao_aplicavel", nota: 0, nota_max: 1,
+      resumo: "Nenhum dado dos Anexos 01 e 06 encontrado. Importe o RREO primeiro.",
+      detalhes: [],
+    };
+  }
+
+  const idx = new Map<string, number>();
+  const periodos = new Set<number>();
+  for (const d of rows) {
+    idx.set(`${d.periodo}|${d.anexo}|${d.cod_conta}|${d.coluna}`, d.valor ?? 0);
+    periodos.add(d.periodo);
+  }
+
+  const TOLERANCIA = 1.00;
+  const colunas = [
+    { nome: "Dotação Atualizada",   colAn06: "DOTAÇÃO ATUALIZADA",    colAn01: "DOTAÇÃO ATUALIZADA (e)"                },
+    { nome: "Despesas Empenhadas",  colAn06: "DESPESAS EMPENHADAS",    colAn01: "DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)" },
+    { nome: "Despesas Liquidadas",  colAn06: "DESPESAS LIQUIDADAS",    colAn01: "DESPESAS LIQUIDADAS ATÉ O BIMESTRE (h)" },
+  ];
+  const blocos = [
+    {
+      bloco: "Correntes",
+      codAn06: "DespesasCorrentesExcetoFontesRPPS",
+      codAn01: "DespesasCorrentes",
+      labelAn06: "DespesasCorrentes (Exceto RPPS)",
+      labelAn01: "DespesasCorrentes",
+    },
+    {
+      bloco: "Capital",
+      codAn06: "DespesasDeCapitalExcetoFontesRPPS",
+      codAn01: "DespesasDeCapital",
+      labelAn06: "DespesasDeCapital (Exceto RPPS)",
+      labelAn01: "DespesasDeCapital",
+    },
+  ];
+
+  const detalhes: object[] = [];
+  let totalComparacoes = 0;
+  let comparacoesOk = 0;
+
+  for (const periodo of Array.from(periodos).sort()) {
+    const label = BIMESTRE_LABELS[periodo] ?? `Período ${periodo}`;
+    for (const { bloco, codAn06, codAn01, labelAn06, labelAn01 } of blocos) {
+      for (const { nome, colAn06, colAn01 } of colunas) {
+        const keyAn06 = `${periodo}|RREO-Anexo 06|${codAn06}|${colAn06}`;
+        const keyAn01 = `${periodo}|RREO-Anexo 01|${codAn01}|${colAn01}`;
+        if (!idx.has(keyAn06) && !idx.has(keyAn01)) continue;
+
+        const vAn06 = idx.get(keyAn06) ?? 0;
+        const vAn01 = idx.get(keyAn01) ?? 0;
+
+        totalComparacoes++;
+        const ok = Math.abs(vAn06 - vAn01) <= TOLERANCIA;
+        if (ok) comparacoesOk++;
+
+        detalhes.push({
+          periodo, label, bloco, nome,
+          descricao_an06: `An06 — ${labelAn06} | ${colAn06}`,
+          descricao_an01: `An01 — ${labelAn01} | ${colAn01}`,
+          valor_an06: vAn06,
+          valor_an01: vAn01,
+          diferenca: vAn06 - vAn01,
+          ok,
+        });
+      }
+    }
+  }
+
+  if (totalComparacoes === 0) {
+    return {
+      status: "nao_aplicavel", nota: 0, nota_max: 1,
+      resumo: "Nenhum par comparável encontrado entre Anexo 01 e Anexo 06.",
+      detalhes: [],
+    };
+  }
+
+  const nota = parseFloat((comparacoesOk / totalComparacoes).toFixed(4));
+  const inconsistentes = totalComparacoes - comparacoesOk;
+
+  if (inconsistentes === 0) {
+    return {
+      status: "consistente", nota: 1, nota_max: 1,
+      resumo: `Todas as ${totalComparacoes} comparações consistentes entre Anexo 01 e Anexo 06 (${periodos.size} período(s), Correntes + Capital).`,
+      detalhes,
+    };
+  }
+
+  return {
+    status: "inconsistente", nota: 0, nota_max: 1,
+    resumo: `${inconsistentes} de ${totalComparacoes} comparações com divergência entre Anexo 01 e Anexo 06.`,
+    detalhes,
+  };
+}
+
+// ── D3_00028: Receitas Realizadas Até o Bimestre — Anexo 01 × Anexo 06 ────────
+// Regra 1: An06 ReceitasCorrentesExcetoFontesRPPS "RECEITAS REALIZADAS (a)"
+//          = An01 ReceitasCorrentes "Até o Bimestre (c)"
+// Regra 2: An06 ReceitasDeCapitalExcetoFontesRPPS "RECEITAS REALIZADAS (a)"
+//          = An01 ReceitasDeCapital "Até o Bimestre (c)"
+async function verificarD3_00028(
+  municipioId: number, _codIbge: string, ano: number,
+): Promise<Partial<ResultadoVerificacao>> {
+  const { rows } = await db.query<{
+    periodo: number; anexo: string; cod_conta: string; coluna: string; valor: number;
+  }>(
+    `SELECT periodo, anexo, cod_conta, coluna, SUM(valor)::float AS valor
+     FROM siconfi_rreo
+     WHERE municipio_id = $1
+       AND exercicio = $2
+       AND rotulo = 'Padrão'
+       AND (
+         (anexo = 'RREO-Anexo 06'
+           AND cod_conta IN ('ReceitasCorrentesExcetoFontesRPPS','ReceitasDeCapitalExcetoFontesRPPS')
+           AND coluna = 'RECEITAS REALIZADAS (a)')
+         OR
+         (anexo = 'RREO-Anexo 01'
+           AND cod_conta IN ('ReceitasCorrentes','ReceitasDeCapital')
+           AND coluna = 'Até o Bimestre (c)')
+       )
+     GROUP BY periodo, anexo, cod_conta, coluna`,
+    [municipioId, ano],
+  );
+
+  if (rows.length === 0) {
+    return {
+      status: "nao_aplicavel", nota: 0, nota_max: 1,
+      resumo: "Nenhum dado dos Anexos 01 e 06 encontrado. Importe o RREO primeiro.",
+      detalhes: [],
+    };
+  }
+
+  const idx = new Map<string, number>();
+  const periodos = new Set<number>();
+  for (const d of rows) {
+    idx.set(`${d.periodo}|${d.anexo}|${d.cod_conta}|${d.coluna}`, d.valor ?? 0);
+    periodos.add(d.periodo);
+  }
+
+  const TOLERANCIA = 1.00;
+  const blocos = [
+    {
+      nome: "Receitas Correntes",
+      codAn06: "ReceitasCorrentesExcetoFontesRPPS",
+      codAn01: "ReceitasCorrentes",
+    },
+    {
+      nome: "Receitas de Capital",
+      codAn06: "ReceitasDeCapitalExcetoFontesRPPS",
+      codAn01: "ReceitasDeCapital",
+    },
+  ];
+
+  const detalhes: object[] = [];
+  let totalComparacoes = 0;
+  let comparacoesOk = 0;
+
+  for (const periodo of Array.from(periodos).sort()) {
+    const label = BIMESTRE_LABELS[periodo] ?? `Período ${periodo}`;
+    for (const { nome, codAn06, codAn01 } of blocos) {
+      const keyAn06 = `${periodo}|RREO-Anexo 06|${codAn06}|RECEITAS REALIZADAS (a)`;
+      const keyAn01 = `${periodo}|RREO-Anexo 01|${codAn01}|Até o Bimestre (c)`;
+      if (!idx.has(keyAn06) && !idx.has(keyAn01)) continue;
+
+      const vAn06 = idx.get(keyAn06) ?? 0;
+      const vAn01 = idx.get(keyAn01) ?? 0;
+
+      totalComparacoes++;
+      const ok = Math.abs(vAn06 - vAn01) <= TOLERANCIA;
+      if (ok) comparacoesOk++;
+
+      detalhes.push({
+        periodo, label, nome,
+        descricao_an06: `An06 — ${codAn06} | RECEITAS REALIZADAS (a)`,
+        descricao_an01: `An01 — ${codAn01} | Até o Bimestre (c)`,
+        valor_an06: vAn06,
+        valor_an01: vAn01,
+        diferenca: vAn06 - vAn01,
+        ok,
+      });
+    }
+  }
+
+  if (totalComparacoes === 0) {
+    return {
+      status: "nao_aplicavel", nota: 0, nota_max: 1,
+      resumo: "Nenhum par comparável encontrado entre Anexo 01 e Anexo 06.",
+      detalhes: [],
+    };
+  }
+
+  const inconsistentes = totalComparacoes - comparacoesOk;
+
+  if (inconsistentes === 0) {
+    return {
+      status: "consistente", nota: 1, nota_max: 1,
+      resumo: `Todas as ${totalComparacoes} comparações consistentes entre Anexo 01 e Anexo 06 (${periodos.size} período(s), Correntes + Capital).`,
+      detalhes,
+    };
+  }
+
+  return {
+    status: "inconsistente", nota: 0, nota_max: 1,
+    resumo: `${inconsistentes} de ${totalComparacoes} comparações com divergência de Receitas Realizadas entre Anexo 01 e Anexo 06.`,
+    detalhes,
+  };
+}
+
+// ── D3_00045: Valores negativos em Restos a Pagar (An06, An07, An14) ─────────
+// Exceções permitidas (An07, conta = TOTAL (III) = (I + II)):
+//   1. RestosAPagarProcessadosENaoProcessadosLiquidadosInscritosEmExerciciosAnteriores | Em Exercícios Anteriores (a)
+//   2. RestosAPagarProcessadosENaoProcessadosLiquidadosInscritosEmExercicioAnterior    | Em 31 de dezembro de XXXX (b)
+//   3. RestosAPagarNaoProcessadosInscritosEmExerciciosAnteriores                       | Em Exercícios Anteriores (f)
+//   4. RestosAPagarNaoProcessadosInscritosEmExercicioAnterior                          | Em 31 de dezembro de XXXX (g)
+function ehExcecaoNegativoRP(
+  anexo: string, cod_conta: string, coluna: string, conta: string,
+): boolean {
+  if (anexo !== "RREO-Anexo 07") return false;
+  if (conta !== "TOTAL (III) = (I + II)") return false;
+
+  if (cod_conta === "RestosAPagarProcessadosENaoProcessadosLiquidadosInscritosEmExerciciosAnteriores"
+      && coluna === "Em Exercícios Anteriores (a)") return true;
+
+  if (cod_conta === "RestosAPagarProcessadosENaoProcessadosLiquidadosInscritosEmExercicioAnterior"
+      && coluna.startsWith("Em 31 de dezembro de") && coluna.endsWith("(b)")) return true;
+
+  if (cod_conta === "RestosAPagarNaoProcessadosInscritosEmExerciciosAnteriores"
+      && coluna === "Em Exercícios Anteriores (f)") return true;
+
+  if (cod_conta === "RestosAPagarNaoProcessadosInscritosEmExercicioAnterior"
+      && coluna.startsWith("Em 31 de dezembro de") && coluna.endsWith("(g)")) return true;
+
+  return false;
+}
+
+async function verificarD3_00045(
+  municipioId: number, _codIbge: string, ano: number,
+): Promise<Partial<ResultadoVerificacao>> {
+  const { rows } = await db.query<{
+    periodo: number; anexo: string; cod_conta: string; conta: string;
+    coluna: string; valor: number; ocorrencias: number;
+  }>(
+    `SELECT periodo, anexo, cod_conta, MAX(conta) AS conta, coluna,
+            MIN(valor)::float AS valor, COUNT(*)::int AS ocorrencias
+     FROM siconfi_rreo
+     WHERE municipio_id = $1
+       AND exercicio = $2
+       AND rotulo = 'Padrão'
+       AND anexo IN ('RREO-Anexo 06','RREO-Anexo 07','RREO-Anexo 14')
+       AND (cod_conta ILIKE '%RestosAPagar%' OR conta ILIKE '%RESTOS A PAGAR%')
+       AND valor < 0
+     GROUP BY periodo, anexo, cod_conta, coluna
+     ORDER BY periodo, anexo, cod_conta, coluna`,
+    [municipioId, ano],
+  );
+
+  if (rows.length === 0) {
+    return {
+      status: "consistente", nota: 1, nota_max: 1,
+      resumo: "Nenhum valor negativo encontrado nas linhas de Restos a Pagar. Todos os valores são ≥ 0.",
+      detalhes: [],
+    };
+  }
+
+  const detalhes: object[] = [];
+  let invalidos = 0;
+
+  for (const d of rows) {
+    const excecao = ehExcecaoNegativoRP(d.anexo, d.cod_conta, d.coluna, d.conta);
+    if (!excecao) invalidos++;
+    detalhes.push({
+      periodo: d.periodo,
+      label: BIMESTRE_LABELS[d.periodo] ?? `Período ${d.periodo}`,
+      anexo: d.anexo,
+      cod_conta: d.cod_conta,
+      conta: d.conta,
+      coluna: d.coluna,
+      valor: d.valor,
+      ocorrencias: d.ocorrencias,
+      excecao,
+      ok: excecao,
+    });
+  }
+
+  const total = rows.length;
+
+  if (invalidos === 0) {
+    return {
+      status: "aviso", nota: 1, nota_max: 1,
+      resumo: `${total} valor(es) negativo(s) em Restos a Pagar, todos enquadrados nas exceções permitidas (inscrição em exercícios anteriores).`,
+      detalhes,
+    };
+  }
+
+  return {
+    status: "inconsistente", nota: 0, nota_max: 1,
+    resumo: `${invalidos} de ${total} valor(es) negativo(s) em Restos a Pagar não enquadrado(s) em exceção permitida.`,
+    detalhes,
+  };
+}
+
+// ── D3_00030: Receitas RPPS — Anexo 04 × soma de 4 contas do Anexo 06 ─────────
+// Aplica-se apenas ao 6° Bimestre (período 6).
+// An04 TotalReceitasRPPSPrevidenciario "RECEITAS REALIZADAS ATÉ O BIMESTRE (b)"
+// = COALESCE(ReceitasPrimariasCorrentesComFontesRPPS, 0)
+// + COALESCE(ReceitasNaoPrimariasCorrentesComFontesRPPS, 0)
+// + COALESCE(ReceitasPrimariasDeCapitalComFontesRPPS, 0)
+// + COALESCE(ReceitasNaoPrimariasDeCapitalComFontesRPPS, 0)
+async function verificarD3_00030(
+  municipioId: number, _codIbge: string, ano: number,
+): Promise<Partial<ResultadoVerificacao>> {
+  const { rows } = await db.query<{
+    periodo: number; anexo: string; cod_conta: string; valor: number;
+  }>(
+    `SELECT periodo, anexo, cod_conta, SUM(valor)::float AS valor
+     FROM siconfi_rreo
+     WHERE municipio_id = $1
+       AND exercicio = $2
+       AND periodo = 6
+       AND rotulo = 'Padrão'
+       AND (
+         (anexo = 'RREO-Anexo 04' AND cod_conta = 'TotalReceitasRPPSPrevidenciario'
+           AND coluna = 'RECEITAS REALIZADAS ATÉ O BIMESTRE (b)')
+         OR
+         (anexo = 'RREO-Anexo 06'
+           AND cod_conta IN (
+             'ReceitasPrimariasCorrentesComFontesRPPS',
+             'ReceitasNaoPrimariasCorrentesComFontesRPPS',
+             'ReceitasPrimariasDeCapitalComFontesRPPS',
+             'ReceitasNaoPrimariasDeCapitalComFontesRPPS'
+           )
+           AND coluna = 'RECEITAS REALIZADAS (a)')
+       )
+     GROUP BY periodo, anexo, cod_conta`,
+    [municipioId, ano],
+  );
+
+  if (rows.length === 0) {
+    return {
+      status: "nao_aplicavel", nota: 0, nota_max: 1,
+      resumo: "Nenhum dado do 6° Bimestre nos Anexos 04 e 06 encontrado. Importe o RREO primeiro.",
+      detalhes: [],
+    };
+  }
+
+  const idx = new Map<string, number>();
+  const periodos = new Set<number>();
+  for (const d of rows) {
+    idx.set(`${d.periodo}|${d.anexo}|${d.cod_conta}`, d.valor ?? 0);
+    periodos.add(d.periodo);
+  }
+
+  const TOLERANCIA = 1.00;
+  const COD_AN06 = [
+    "ReceitasPrimariasCorrentesComFontesRPPS",
+    "ReceitasNaoPrimariasCorrentesComFontesRPPS",
+    "ReceitasPrimariasDeCapitalComFontesRPPS",
+    "ReceitasNaoPrimariasDeCapitalComFontesRPPS",
+  ];
+
+  const detalhes: object[] = [];
+  let totalPeriodos = 0;
+  let periodosOk = 0;
+
+  for (const periodo of Array.from(periodos).sort()) {
+    const label = BIMESTRE_LABELS[periodo] ?? `Período ${periodo}`;
+    const vAn04 = idx.get(`${periodo}|RREO-Anexo 04|TotalReceitasRPPSPrevidenciario`) ?? null;
+
+    if (vAn04 === null) continue; // An04 ausente neste período — não analisa
+
+    totalPeriodos++;
+    const componentes = COD_AN06.map(cod => ({
+      cod_conta: cod,
+      valor: idx.get(`${periodo}|RREO-Anexo 06|${cod}`) ?? 0,
+    }));
+    const somaAn06 = componentes.reduce((acc, c) => acc + c.valor, 0);
+    const diferenca = vAn04 - somaAn06;
+    const ok = Math.abs(diferenca) <= TOLERANCIA;
+    if (ok) periodosOk++;
+
+    detalhes.push({
+      periodo, label,
+      valor_an04: vAn04,
+      soma_an06: somaAn06,
+      componentes,
+      diferenca,
+      ok,
+    });
+  }
+
+  if (totalPeriodos === 0) {
+    return {
+      status: "nao_aplicavel", nota: 0, nota_max: 1,
+      resumo: "Nenhum registro do Anexo 04 no 6° Bimestre encontrado para comparação.",
+      detalhes: [],
+    };
+  }
+
+  const inconsistentes = totalPeriodos - periodosOk;
+
+  if (inconsistentes === 0) {
+    return {
+      status: "consistente", nota: 1, nota_max: 1,
+      resumo: `6° Bimestre consistente — total de receitas RPPS igual entre Anexo 04 e Anexo 06.`,
+      detalhes,
+    };
+  }
+
+  return {
+    status: "inconsistente", nota: 0, nota_max: 1,
+    resumo: `6° Bimestre com divergência entre o total de receitas RPPS do Anexo 04 e a soma do Anexo 06.`,
+    detalhes,
+  };
+}
+
+// ── D3_00040: Receitas de Operações de Crédito — Anexo 01 × Anexo 09 ─────────
+// Aplica-se apenas ao período 6.
+// Regra 1: An09 RREO9ReceitasDeOperacoesDeCredito "RECEITAS REALIZADAS (b)"
+//          = An01 ReceitasDeOperacoesDeCredito "Até o Bimestre (c)"
+// Regra 2: An09 RREO9ReceitasDeOperacoesDeCredito "PREVISÃO ATUALIZADA (a)"
+//          = An01 ReceitasDeOperacoesDeCredito "PREVISÃO ATUALIZADA (a)"
+// Ausência simultânea nos dois anexos → válido (município sem operações de crédito)
+// Presença em apenas um → inválido
+async function verificarD3_00040(
+  municipioId: number, _codIbge: string, ano: number,
+): Promise<Partial<ResultadoVerificacao>> {
+  const { rows } = await db.query<{
+    anexo: string; coluna: string; valor: number;
+  }>(
+    `SELECT anexo, coluna, SUM(valor)::float AS valor
+     FROM siconfi_rreo
+     WHERE municipio_id = $1
+       AND exercicio = $2
+       AND periodo = 6
+       AND rotulo = 'Padrão'
+       AND (
+         (anexo = 'RREO-Anexo 09' AND cod_conta = 'RREO9ReceitasDeOperacoesDeCredito'
+           AND coluna IN ('RECEITAS REALIZADAS (b)','PREVISÃO ATUALIZADA (a)'))
+         OR
+         (anexo = 'RREO-Anexo 01' AND cod_conta = 'ReceitasDeOperacoesDeCredito'
+           AND coluna IN ('Até o Bimestre (c)','PREVISÃO ATUALIZADA (a)'))
+       )
+     GROUP BY anexo, coluna`,
+    [municipioId, ano],
+  );
+
+  const idx = new Map<string, number>();
+  for (const d of rows) idx.set(`${d.anexo}|${d.coluna}`, d.valor ?? 0);
+
+  const temAn09 = idx.has("RREO-Anexo 09|RECEITAS REALIZADAS (b)") ||
+                  idx.has("RREO-Anexo 09|PREVISÃO ATUALIZADA (a)");
+  const temAn01 = idx.has("RREO-Anexo 01|Até o Bimestre (c)") ||
+                  idx.has("RREO-Anexo 01|PREVISÃO ATUALIZADA (a)");
+
+  // Situação 1: nenhum dos dois → válido
+  if (!temAn09 && !temAn01) {
+    return {
+      status: "consistente", nota: 1, nota_max: 1,
+      resumo: "Nenhuma linha de Operações de Crédito nos Anexos 01 e 09 — município sem operações de crédito (válido).",
+      detalhes: [],
+    };
+  }
+
+  // Situação 2: apenas um dos dois → inválido
+  if (temAn09 !== temAn01) {
+    return {
+      status: "inconsistente", nota: 0, nota_max: 1,
+      resumo: `Linha de Operações de Crédito presente apenas no ${temAn09 ? "Anexo 09" : "Anexo 01"} — inconsistência entre demonstrativos.`,
+      detalhes: [],
+    };
+  }
+
+  // Situação 3: ambos existem — comparar os dois pares
+  const TOLERANCIA = 1.00;
+  const comparacoes = [
+    {
+      nome: "Receita Realizada",
+      vAn09: idx.get("RREO-Anexo 09|RECEITAS REALIZADAS (b)") ?? null,
+      vAn01: idx.get("RREO-Anexo 01|Até o Bimestre (c)") ?? null,
+      colAn09: "RECEITAS REALIZADAS (b)",
+      colAn01: "Até o Bimestre (c)",
+    },
+    {
+      nome: "Previsão Atualizada",
+      vAn09: idx.get("RREO-Anexo 09|PREVISÃO ATUALIZADA (a)") ?? null,
+      vAn01: idx.get("RREO-Anexo 01|PREVISÃO ATUALIZADA (a)") ?? null,
+      colAn09: "PREVISÃO ATUALIZADA (a)",
+      colAn01: "PREVISÃO ATUALIZADA (a)",
+    },
+  ];
+
+  const detalhes: object[] = [];
+  let totalOk = 0;
+
+  for (const { nome, vAn09, vAn01, colAn09, colAn01 } of comparacoes) {
+    const ok = vAn09 !== null && vAn01 !== null && Math.abs(vAn09 - vAn01) <= TOLERANCIA;
+    if (ok) totalOk++;
+    detalhes.push({
+      nome,
+      descricao_an09: `An09 — RREO9ReceitasDeOperacoesDeCredito | ${colAn09}`,
+      descricao_an01: `An01 — ReceitasDeOperacoesDeCredito | ${colAn01}`,
+      valor_an09: vAn09,
+      valor_an01: vAn01,
+      diferenca: vAn09 !== null && vAn01 !== null ? vAn09 - vAn01 : null,
+      ok,
+    });
+  }
+
+  if (totalOk === comparacoes.length) {
+    return {
+      status: "consistente", nota: 1, nota_max: 1,
+      resumo: "6° Bimestre consistente — Receitas de Operações de Crédito iguais entre Anexo 01 e Anexo 09.",
+      detalhes,
+    };
+  }
+
+  const inconsistentes = comparacoes.length - totalOk;
+  return {
+    status: "inconsistente", nota: 0, nota_max: 1,
+    resumo: `6° Bimestre: ${inconsistentes} de ${comparacoes.length} comparações com divergência de Operações de Crédito entre Anexo 01 e Anexo 09.`,
     detalhes,
   };
 }
@@ -1357,6 +2155,13 @@ const verificadores: Record<string, VerificadorFn> = {
   "D3_00002": verificarD3_00002,
   "D3_00003": verificarD3_00003,
   "D3_00007": verificarD3_00007,
+  "D3_00012": verificarD3_00012,
+  "D3_00017": verificarD3_00017,
+  "D3_00027": verificarD3_00027,
+  "D3_00028": verificarD3_00028,
+  "D3_00030": verificarD3_00030,
+  "D3_00040": verificarD3_00040,
+  "D3_00045": verificarD3_00045,
 };
 
 // POST /api/siconfi/validar/:municipio_id
