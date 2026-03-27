@@ -1465,31 +1465,34 @@ async function verificarD3_00012(
 }
 
 // ── D3_00017: RP pagos — Anexo 06 × Anexo 07 ────────────────────────────────
-// Comparação 1: An07 RestosAPagarNaoProcessadosPagos "Pagos (i)"
-//               = An06 DespesasCorrentesExcetoFontesRPPS "PAGOS (c)"
-// Comparação 2: An06 DespesaPrimariaTotalExcetoFontesRPPS "RESTOS A PAGAR PROCESSADOS PAGOS (b)"
-//               = An07 RestosAPagarProcessadosENaoProcessadosLiquidadosPagos "Pagos (c)"
+// Total_Anexo_06 = Σ(An06 DespesasCorrentesExcetoFontesRPPS RP PROC. PAGOS (b))
+//               + Σ(An06 DespesasCorrentesExcetoFontesRPPS PAGOS (c))
+//               + Σ(An06 DespesasDeCapitalExcetoFontesRPPS RP PROC. PAGOS (b))
+//               + Σ(An06 DespesasDeCapitalExcetoFontesRPPS PAGOS (c))
+// Total_Anexo_07 = Σ(An07 RestosAPagarProcessadosENaoProcessadosLiquidadosPagos Pagos (c))
+//               + Σ(An07 RestosAPagarNaoProcessadosPagos Pagos (i))
+// Regra: Total_Anexo_06 = Total_Anexo_07 (por contexto período/periodicidade/demonstrativo/rotulo)
 async function verificarD3_00017(
   municipioId: number, _codIbge: string, ano: number,
 ): Promise<Partial<ResultadoVerificacao>> {
   const { rows } = await db.query<{
-    periodo: number; anexo: string; cod_conta: string; coluna: string; valor: number;
+    periodo: number; periodicidade: string; demonstrativo: string; rotulo: string;
+    anexo: string; cod_conta: string; coluna: string; valor: number;
   }>(
-    `SELECT periodo, anexo, cod_conta, coluna, SUM(valor)::float AS valor
+    `SELECT periodo, periodicidade, demonstrativo, rotulo, anexo, cod_conta, coluna,
+            COALESCE(SUM(valor), 0)::float AS valor
      FROM siconfi_rreo
      WHERE municipio_id = $1
        AND exercicio = $2
-       AND rotulo = 'Padrão'
        AND (
-         (anexo = 'RREO-Anexo 07' AND cod_conta = 'RestosAPagarNaoProcessadosPagos'                           AND coluna = 'Pagos (i)')
-         OR
-         (anexo = 'RREO-Anexo 06' AND cod_conta = 'DespesasCorrentesExcetoFontesRPPS'                          AND coluna = 'PAGOS (c)')
-         OR
-         (anexo = 'RREO-Anexo 06' AND cod_conta = 'DespesaPrimariaTotalExcetoFontesRPPS'                       AND coluna = 'RESTOS A PAGAR PROCESSADOS PAGOS (b)')
-         OR
-         (anexo = 'RREO-Anexo 07' AND cod_conta = 'RestosAPagarProcessadosENaoProcessadosLiquidadosPagos'      AND coluna = 'Pagos (c)')
+         (anexo = 'RREO-Anexo 06' AND cod_conta = 'DespesasCorrentesExcetoFontesRPPS'                        AND coluna = 'RESTOS A PAGAR PROCESSADOS PAGOS (b)')
+         OR (anexo = 'RREO-Anexo 06' AND cod_conta = 'DespesasCorrentesExcetoFontesRPPS'                     AND coluna = 'PAGOS (c)')
+         OR (anexo = 'RREO-Anexo 06' AND cod_conta = 'DespesasDeCapitalExcetoFontesRPPS'                     AND coluna = 'RESTOS A PAGAR PROCESSADOS PAGOS (b)')
+         OR (anexo = 'RREO-Anexo 06' AND cod_conta = 'DespesasDeCapitalExcetoFontesRPPS'                     AND coluna = 'PAGOS (c)')
+         OR (anexo = 'RREO-Anexo 07' AND cod_conta = 'RestosAPagarProcessadosENaoProcessadosLiquidadosPagos' AND coluna = 'Pagos (c)')
+         OR (anexo = 'RREO-Anexo 07' AND cod_conta = 'RestosAPagarNaoProcessadosPagos'                       AND coluna = 'Pagos (i)')
        )
-     GROUP BY periodo, anexo, cod_conta, coluna`,
+     GROUP BY periodo, periodicidade, demonstrativo, rotulo, anexo, cod_conta, coluna`,
     [municipioId, ano],
   );
 
@@ -1501,86 +1504,95 @@ async function verificarD3_00017(
     };
   }
 
+  // Agrupar por chave de contexto
+  type CtxKey = string;
+  type CtxMeta = { periodo: number; periodicidade: string; demonstrativo: string; rotulo: string };
+  const ctxMeta = new Map<CtxKey, CtxMeta>();
   const idx = new Map<string, number>();
-  const periodos = new Set<number>();
+
   for (const d of rows) {
-    idx.set(`${d.periodo}|${d.anexo}|${d.cod_conta}|${d.coluna}`, d.valor ?? 0);
-    periodos.add(d.periodo);
+    const ctxKey = `${d.periodo}|${d.periodicidade}|${d.demonstrativo}|${d.rotulo}`;
+    if (!ctxMeta.has(ctxKey)) {
+      ctxMeta.set(ctxKey, {
+        periodo: d.periodo,
+        periodicidade: d.periodicidade,
+        demonstrativo: d.demonstrativo,
+        rotulo: d.rotulo,
+      });
+    }
+    idx.set(`${ctxKey}|${d.anexo}|${d.cod_conta}|${d.coluna}`, d.valor ?? 0);
   }
 
-  const TOLERANCIA = 1.00; // diferenças de centavos são irrelevantes para a análise
+  const TOLERANCIA = 1.00;
   const detalhes: object[] = [];
-  let totalComparacoes = 0;
-  let comparacoesOk = 0;
+  let totalContextos = 0;
+  let contextosOk = 0;
 
-  for (const periodo of Array.from(periodos).sort()) {
-    const label = BIMESTRE_LABELS[periodo] ?? `Período ${periodo}`;
+  for (const [ctxKey, meta] of Array.from(ctxMeta.entries()).sort((a, b) => a[1].periodo - b[1].periodo)) {
+    const label = `${BIMESTRE_LABELS[meta.periodo] ?? `Período ${meta.periodo}`}${meta.periodicidade ? ` (${meta.periodicidade})` : ""}`;
 
-    // Comparação 1: An07 NaoProcessados Pagos (i) = An06 DespesasCorrentes PAGOS (c)
-    const key1_an07 = `${periodo}|RREO-Anexo 07|RestosAPagarNaoProcessadosPagos|Pagos (i)`;
-    const key1_an06 = `${periodo}|RREO-Anexo 06|DespesasCorrentesExcetoFontesRPPS|PAGOS (c)`;
-    if (idx.has(key1_an07) || idx.has(key1_an06)) {
-      const v1_an07 = idx.get(key1_an07) ?? 0;
-      const v1_an06 = idx.get(key1_an06) ?? 0;
-      totalComparacoes++;
-      const ok1 = Math.abs(v1_an07 - v1_an06) <= TOLERANCIA;
-      if (ok1) comparacoesOk++;
-      detalhes.push({
-        periodo, label,
-        comparacao: "RP Não Processados Pagos",
-        descricao_esquerda: "An07 — TOTAL (III) | Pagos (i)",
-        descricao_direita: "An06 — DESPESAS CORRENTES (EXCETO RPPS) | PAGOS (c)",
-        valor_esquerda: v1_an07,
-        valor_direita: v1_an06,
-        diferenca: v1_an07 - v1_an06,
-        ok: ok1,
-      });
-    }
+    const get = (anexo: string, cod_conta: string, coluna: string): number =>
+      idx.get(`${ctxKey}|${anexo}|${cod_conta}|${coluna}`) ?? 0;
 
-    // Comparação 2: An06 DespesaPrimaria RP PROCESSADOS PAGOS (b) = An07 Processados+NaoProcessados Pagos (c)
-    const key2_an06 = `${periodo}|RREO-Anexo 06|DespesaPrimariaTotalExcetoFontesRPPS|RESTOS A PAGAR PROCESSADOS PAGOS (b)`;
-    const key2_an07 = `${periodo}|RREO-Anexo 07|RestosAPagarProcessadosENaoProcessadosLiquidadosPagos|Pagos (c)`;
-    if (idx.has(key2_an06) || idx.has(key2_an07)) {
-      const v2_an06 = idx.get(key2_an06) ?? 0;
-      const v2_an07 = idx.get(key2_an07) ?? 0;
-      totalComparacoes++;
-      const ok2 = Math.abs(v2_an06 - v2_an07) <= TOLERANCIA;
-      if (ok2) comparacoesOk++;
-      detalhes.push({
-        periodo, label,
-        comparacao: "RP Processados Pagos",
-        descricao_esquerda: "An06 — DESPESA PRIMÁRIA TOTAL (EXCETO RPPS) | RP PROCESSADOS PAGOS (b)",
-        descricao_direita: "An07 — TOTAL (III) | Pagos (c)",
-        valor_esquerda: v2_an06,
-        valor_direita: v2_an07,
-        diferenca: v2_an06 - v2_an07,
-        ok: ok2,
-      });
-    }
+    // Componentes do Anexo 06
+    const an06_correntes_rpp = get("RREO-Anexo 06", "DespesasCorrentesExcetoFontesRPPS", "RESTOS A PAGAR PROCESSADOS PAGOS (b)");
+    const an06_correntes_pag = get("RREO-Anexo 06", "DespesasCorrentesExcetoFontesRPPS", "PAGOS (c)");
+    const an06_capital_rpp   = get("RREO-Anexo 06", "DespesasDeCapitalExcetoFontesRPPS",  "RESTOS A PAGAR PROCESSADOS PAGOS (b)");
+    const an06_capital_pag   = get("RREO-Anexo 06", "DespesasDeCapitalExcetoFontesRPPS",  "PAGOS (c)");
+
+    // Componentes do Anexo 07
+    const an07_proc_pag    = get("RREO-Anexo 07", "RestosAPagarProcessadosENaoProcessadosLiquidadosPagos", "Pagos (c)");
+    const an07_naoproc_pag = get("RREO-Anexo 07", "RestosAPagarNaoProcessadosPagos", "Pagos (i)");
+
+    const total_anexo_06 = an06_correntes_rpp + an06_correntes_pag + an06_capital_rpp + an06_capital_pag;
+    const total_anexo_07 = an07_proc_pag + an07_naoproc_pag;
+
+    totalContextos++;
+    const ok = Math.abs(total_anexo_06 - total_anexo_07) <= TOLERANCIA;
+    if (ok) contextosOk++;
+
+    detalhes.push({
+      periodo: meta.periodo,
+      label,
+      total_anexo_06,
+      total_anexo_07,
+      diferenca: total_anexo_06 - total_anexo_07,
+      ok,
+      componentes_06: [
+        { cod_conta: "DespesasCorrentesExcetoFontesRPPS", coluna: "RESTOS A PAGAR PROCESSADOS PAGOS (b)", valor: an06_correntes_rpp },
+        { cod_conta: "DespesasCorrentesExcetoFontesRPPS", coluna: "PAGOS (c)",                            valor: an06_correntes_pag },
+        { cod_conta: "DespesasDeCapitalExcetoFontesRPPS", coluna: "RESTOS A PAGAR PROCESSADOS PAGOS (b)", valor: an06_capital_rpp },
+        { cod_conta: "DespesasDeCapitalExcetoFontesRPPS", coluna: "PAGOS (c)",                            valor: an06_capital_pag },
+      ],
+      componentes_07: [
+        { cod_conta: "RestosAPagarProcessadosENaoProcessadosLiquidadosPagos", coluna: "Pagos (c)", valor: an07_proc_pag },
+        { cod_conta: "RestosAPagarNaoProcessadosPagos",                       coluna: "Pagos (i)", valor: an07_naoproc_pag },
+      ],
+    });
   }
 
-  if (totalComparacoes === 0) {
+  if (totalContextos === 0) {
     return {
       status: "nao_aplicavel", nota: 0, nota_max: 1,
-      resumo: "Nenhum par comparável encontrado entre Anexo 06 e Anexo 07.",
+      resumo: "Nenhum contexto comparável encontrado entre Anexo 06 e Anexo 07.",
       detalhes: [],
     };
   }
 
-  const nota = parseFloat((comparacoesOk / totalComparacoes).toFixed(4));
-  const inconsistentes = totalComparacoes - comparacoesOk;
+  const nota = parseFloat((contextosOk / totalContextos).toFixed(4));
+  const inconsistentes = totalContextos - contextosOk;
 
   if (inconsistentes === 0) {
     return {
       status: "consistente", nota: 1, nota_max: 1,
-      resumo: `Todas as ${totalComparacoes} comparações consistentes entre Anexo 06 e Anexo 07 (${periodos.size} período(s)).`,
+      resumo: `Todos os ${totalContextos} período(s) consistentes: Total Anexo 06 = Total Anexo 07.`,
       detalhes,
     };
   }
 
   return {
     status: "inconsistente", nota: 0, nota_max: 1,
-    resumo: `${inconsistentes} de ${totalComparacoes} comparações com divergência de RP pagos entre Anexo 06 e Anexo 07.`,
+    resumo: `${inconsistentes} de ${totalContextos} período(s) com divergência entre Total Anexo 06 e Total Anexo 07.`,
     detalhes,
   };
 }
