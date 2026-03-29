@@ -30,6 +30,7 @@ interface ResultadoVerificacao {
   detalhes: any[];
   nota: number;      // 0.0 – 1.0
   nota_max: number;  // sempre 1.0
+  temRetificacao?: boolean; // D1_00006: indica períodos com RE (data original do HO indisponível)
 }
 
 interface RespostaValidacao {
@@ -142,26 +143,42 @@ function DetalhesD1_00001({ detalhes }: { detalhes: any[] }) {
       <TableHeader>
         <TableRow className="bg-[#e3eef6]/50 hover:bg-[#e3eef6]/50">
           <TableHead className="text-xs font-semibold text-[#033e66]">Período</TableHead>
-          <TableHead className="text-xs font-semibold text-[#033e66]">Homologado</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66]">Entregue</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66]">Status</TableHead>
           <TableHead className="text-xs font-semibold text-[#033e66]">Data</TableHead>
           <TableHead className="text-xs font-semibold text-[#033e66]">Instituição</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        {detalhes.map((d: any) => (
-          <TableRow key={d.periodo} className="hover:bg-[#e3eef6]/30">
-            <TableCell className="text-sm text-[#045ba3] font-medium">{d.label}</TableCell>
-            <TableCell className="text-sm">
-              {d.entregue
-                ? <span className="text-[#059669] font-semibold">✓ Sim</span>
-                : <span className="text-[#ef4444] font-semibold">✗ Não</span>}
-            </TableCell>
-            <TableCell className="text-sm text-[#045ba3]">
-              {d.data_status ? new Date(d.data_status).toLocaleDateString("pt-BR") : "—"}
-            </TableCell>
-            <TableCell className="text-sm text-[#045ba3]">{d.instituicao ?? "—"}</TableCell>
-          </TableRow>
-        ))}
+        {detalhes.map((d: any) => {
+          const isRE = d.status_relatorio?.trim() === "RE";
+          return (
+            <TableRow key={d.periodo} className="hover:bg-[#e3eef6]/30">
+              <TableCell className="text-sm text-[#045ba3] font-medium">{d.label}</TableCell>
+              <TableCell className="text-sm">
+                {d.entregue
+                  ? <span className="text-[#059669] font-semibold">✓ Sim</span>
+                  : <span className="text-[#ef4444] font-semibold">✗ Não</span>}
+              </TableCell>
+              <TableCell>
+                {d.status_relatorio
+                  ? <span
+                      className="inline-block text-xs font-bold px-2 py-0.5 rounded-full"
+                      style={isRE
+                        ? { color: "#b45309", backgroundColor: "#fef3c7" }
+                        : { color: "#059669", backgroundColor: "#00e1a420" }}
+                    >
+                      {d.status_relatorio} — {isRE ? "Retificado" : "Homologado"}
+                    </span>
+                  : <span className="text-xs text-[#045ba3]/40">—</span>}
+              </TableCell>
+              <TableCell className="text-sm text-[#045ba3]">
+                {d.data_status ? new Date(d.data_status).toLocaleDateString("pt-BR") : "—"}
+              </TableCell>
+              <TableCell className="text-sm text-[#045ba3]">{d.instituicao ?? "—"}</TableCell>
+            </TableRow>
+          );
+        })}
       </TableBody>
     </Table>
   );
@@ -448,33 +465,213 @@ function DetalhesD3_00040({ detalhes }: { detalhes: any[] }) {
       <TableHeader>
         <TableRow className="bg-[#e3eef6]/50 hover:bg-[#e3eef6]/50">
           <TableHead className="text-xs font-semibold text-[#033e66]">Comparação</TableHead>
-          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Anexo 09</TableHead>
-          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Anexo 01</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66]">Anexo 01 — contas somadas</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Total An01</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">An09</TableHead>
           <TableHead className="text-xs font-semibold text-[#033e66] text-right">Diferença</TableHead>
           <TableHead className="text-xs font-semibold text-[#033e66] text-center">Status</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {detalhes.map((d: any, i: number) => (
-          <TableRow key={i} className={!d.ok ? "bg-[#ef444408] hover:bg-[#ef444412]" : "hover:bg-[#e3eef6]/30"}>
-            <TableCell className="text-xs text-[#045ba3]">
-              <span className="font-semibold">{d.nome}</span>
-              <br />
-              <span className="text-[#6b7280]">{d.descricao_an09}</span>
-              <br />
-              <span className="text-[#6b7280]">{d.descricao_an01}</span>
+          <TableRow key={i} className={!d.consistente ? "bg-[#ef444408] hover:bg-[#ef444412]" : "hover:bg-[#e3eef6]/30"}>
+            <TableCell className="text-sm text-[#045ba3] font-medium whitespace-nowrap align-top">
+              {d.comparacao}
             </TableCell>
-            <TableCell className="text-sm text-right font-mono text-[#045ba3]">{fmt(d.valor_an09)}</TableCell>
-            <TableCell className="text-sm text-right font-mono text-[#045ba3]">{fmt(d.valor_an01)}</TableCell>
-            <TableCell className={`text-sm text-right font-mono font-semibold ${
-              d.diferenca === null ? "text-[#6b7280]"
-              : Math.abs(d.diferenca) <= 1.00 ? "text-[#059669]"
-              : "text-[#ef4444]"
+            <TableCell className="text-xs text-[#6b7280] align-top">
+              {(d.an01_componentes as any[]).map((c: any) => (
+                <div key={c.cod_conta} className="leading-5">
+                  <span className="font-mono text-[#045ba3]/80">{c.cod_conta}</span>
+                  <span className="text-[#6b7280]"> | {d.col_an01}</span>
+                  <span className="float-right font-mono text-[#045ba3] ml-4">{fmt(c.valor)}</span>
+                </div>
+              ))}
+              <div className="mt-1 pt-1 border-t border-[#c7dff0] text-[10px] text-[#6b7280] leading-4">
+                <span className="font-mono text-[#033e66]">{d.an09_cod_conta}</span>
+                <span className="text-[#6b7280]"> | {d.col_an09}</span>
+                <span className="ml-1 text-[#6b7280]">(An09)</span>
+              </div>
+            </TableCell>
+            <TableCell className="text-sm text-right font-mono font-semibold text-[#045ba3] align-top">{fmt(d.an01_valor)}</TableCell>
+            <TableCell className="text-sm text-right font-mono text-[#045ba3] align-top">{fmt(d.an09_valor)}</TableCell>
+            <TableCell className={`text-sm text-right font-mono font-semibold align-top ${
+              Math.abs(d.diferenca) <= 0.01 ? "text-[#059669]" : "text-[#ef4444]"
             }`}>
-              {d.diferenca === null ? "—" : fmt(d.diferenca)}
+              {fmt(d.diferenca)}
             </TableCell>
-            <TableCell className="text-center">
-              {d.ok
+            <TableCell className="text-center align-top">
+              {d.consistente
+                ? <span className="text-[#059669] font-bold text-xs">✓ Igual</span>
+                : <span className="text-[#ef4444] font-bold text-xs">✗ Diverge</span>}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+// ── Detalhes D3_00037: Investimentos — Anexo 01 × Anexo 09 ───────────────────
+
+function DetalhesD3_00037({ detalhes }: { detalhes: any[] }) {
+  if (!detalhes.length) return <p className="text-xs text-[#045ba3]/70 p-3">Sem detalhes disponíveis.</p>;
+  const fmt = (v: number | null) =>
+    v === null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="bg-[#e3eef6]/50 hover:bg-[#e3eef6]/50">
+          <TableHead className="text-xs font-semibold text-[#033e66]">Comparação</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66]">Anexo 01 — contas somadas</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Total An01</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">An09</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Diferença</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-center">Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {detalhes.map((d: any, i: number) => (
+          <TableRow key={i} className={!d.consistente ? "bg-[#ef444408] hover:bg-[#ef444412]" : "hover:bg-[#e3eef6]/30"}>
+            <TableCell className="text-sm text-[#045ba3] font-medium whitespace-nowrap align-top">
+              {d.comparacao}
+            </TableCell>
+            <TableCell className="text-xs text-[#6b7280] align-top">
+              {(d.an01_componentes as any[]).map((c: any) => (
+                <div key={c.cod_conta} className="leading-5">
+                  <span className="font-mono text-[#045ba3]/80">{c.cod_conta}</span>
+                  <span className="text-[#6b7280]"> | {d.col_an01}</span>
+                  <span className="float-right font-mono text-[#045ba3] ml-4">{fmt(c.valor)}</span>
+                </div>
+              ))}
+              <div className="mt-1 pt-1 border-t border-[#c7dff0] text-[10px] text-[#6b7280] leading-4">
+                <span className="font-mono text-[#033e66]">{d.an09_cod_conta}</span>
+                <span className="text-[#6b7280]"> | {d.col_an09}</span>
+                <span className="ml-1 text-[#6b7280]">(An09)</span>
+              </div>
+            </TableCell>
+            <TableCell className="text-sm text-right font-mono font-semibold text-[#045ba3] align-top">{fmt(d.an01_valor)}</TableCell>
+            <TableCell className="text-sm text-right font-mono text-[#045ba3] align-top">{fmt(d.an09_valor)}</TableCell>
+            <TableCell className={`text-sm text-right font-mono font-semibold align-top ${
+              Math.abs(d.diferenca) <= 0.01 ? "text-[#059669]" : "text-[#ef4444]"
+            }`}>
+              {fmt(d.diferenca)}
+            </TableCell>
+            <TableCell className="text-center align-top">
+              {d.consistente
+                ? <span className="text-[#059669] font-bold text-xs">✓ Igual</span>
+                : <span className="text-[#ef4444] font-bold text-xs">✗ Diverge</span>}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+// ── Detalhes D3_00038: Inversões Financeiras — Anexo 01 × Anexo 09 ──────────
+
+function DetalhesD3_00038({ detalhes }: { detalhes: any[] }) {
+  if (!detalhes.length) return <p className="text-xs text-[#045ba3]/70 p-3">Sem detalhes disponíveis.</p>;
+  const fmt = (v: number | null) =>
+    v === null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="bg-[#e3eef6]/50 hover:bg-[#e3eef6]/50">
+          <TableHead className="text-xs font-semibold text-[#033e66]">Comparação</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66]">Anexo 01 — contas somadas</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Total An01</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">An09</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Diferença</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-center">Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {detalhes.map((d: any, i: number) => (
+          <TableRow key={i} className={!d.consistente ? "bg-[#ef444408] hover:bg-[#ef444412]" : "hover:bg-[#e3eef6]/30"}>
+            <TableCell className="text-sm text-[#045ba3] font-medium whitespace-nowrap align-top">
+              {d.comparacao}
+            </TableCell>
+            <TableCell className="text-xs text-[#6b7280] align-top">
+              {(d.an01_componentes as any[]).map((c: any) => (
+                <div key={c.cod_conta} className="leading-5">
+                  <span className="font-mono text-[#045ba3]/80">{c.cod_conta}</span>
+                  <span className="text-[#6b7280]"> | {d.col_an01}</span>
+                  <span className="float-right font-mono text-[#045ba3] ml-4">{fmt(c.valor)}</span>
+                </div>
+              ))}
+              <div className="mt-1 pt-1 border-t border-[#c7dff0] text-[10px] text-[#6b7280] leading-4">
+                <span className="font-mono text-[#033e66]">{d.an09_cod_conta}</span>
+                <span className="text-[#6b7280]"> | {d.col_an09}</span>
+                <span className="ml-1 text-[#6b7280]">(An09)</span>
+              </div>
+            </TableCell>
+            <TableCell className="text-sm text-right font-mono font-semibold text-[#045ba3] align-top">{fmt(d.an01_valor)}</TableCell>
+            <TableCell className="text-sm text-right font-mono text-[#045ba3] align-top">{fmt(d.an09_valor)}</TableCell>
+            <TableCell className={`text-sm text-right font-mono font-semibold align-top ${
+              Math.abs(d.diferenca) <= 0.01 ? "text-[#059669]" : "text-[#ef4444]"
+            }`}>
+              {fmt(d.diferenca)}
+            </TableCell>
+            <TableCell className="text-center align-top">
+              {d.consistente
+                ? <span className="text-[#059669] font-bold text-xs">✓ Igual</span>
+                : <span className="text-[#ef4444] font-bold text-xs">✗ Diverge</span>}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+// ── Detalhes D3_00039: Amortização da Dívida — Anexo 01 × Anexo 09 ──────────
+
+function DetalhesD3_00039({ detalhes }: { detalhes: any[] }) {
+  if (!detalhes.length) return <p className="text-xs text-[#045ba3]/70 p-3">Sem detalhes disponíveis.</p>;
+  const fmt = (v: number | null) =>
+    v === null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow className="bg-[#e3eef6]/50 hover:bg-[#e3eef6]/50">
+          <TableHead className="text-xs font-semibold text-[#033e66]">Comparação</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66]">Anexo 01 — contas somadas</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Total An01</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">An09</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-right">Diferença</TableHead>
+          <TableHead className="text-xs font-semibold text-[#033e66] text-center">Status</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {detalhes.map((d: any, i: number) => (
+          <TableRow key={i} className={!d.consistente ? "bg-[#ef444408] hover:bg-[#ef444412]" : "hover:bg-[#e3eef6]/30"}>
+            <TableCell className="text-sm text-[#045ba3] font-medium whitespace-nowrap align-top">
+              {d.comparacao}
+            </TableCell>
+            <TableCell className="text-xs text-[#6b7280] align-top">
+              {(d.an01_componentes as any[]).map((c: any) => (
+                <div key={c.cod_conta} className="leading-5">
+                  <span className="font-mono text-[#045ba3]/80">{c.cod_conta}</span>
+                  <span className="text-[#6b7280]"> | {d.col_an01}</span>
+                  <span className="float-right font-mono text-[#045ba3] ml-4">{fmt(c.valor)}</span>
+                </div>
+              ))}
+              <div className="mt-1 pt-1 border-t border-[#c7dff0] text-[10px] text-[#6b7280] leading-4">
+                <span className="font-mono text-[#033e66]">AmortizacaoDaDivida</span>
+                <span className="text-[#6b7280]"> | {d.col_an09}</span>
+                <span className="ml-1 text-[#6b7280]">(An09)</span>
+              </div>
+            </TableCell>
+            <TableCell className="text-sm text-right font-mono font-semibold text-[#045ba3] align-top">{fmt(d.an01_valor)}</TableCell>
+            <TableCell className="text-sm text-right font-mono text-[#045ba3] align-top">{fmt(d.an09_valor)}</TableCell>
+            <TableCell className={`text-sm text-right font-mono font-semibold align-top ${
+              Math.abs(d.diferenca) <= 0.01 ? "text-[#059669]" : "text-[#ef4444]"
+            }`}>
+              {fmt(d.diferenca)}
+            </TableCell>
+            <TableCell className="text-center align-top">
+              {d.consistente
                 ? <span className="text-[#059669] font-bold text-xs">✓ Igual</span>
                 : <span className="text-[#ef4444] font-bold text-xs">✗ Diverge</span>}
             </TableCell>
@@ -804,6 +1001,9 @@ const DETALHE_COMPONENTE: Record<string, React.ComponentType<{ detalhes: any[] }
   "D3_00027": DetalhesD3_00027,
   "D3_00028": DetalhesD3_00028,
   "D3_00030": DetalhesD3_00030,
+  "D3_00037": DetalhesD3_00037,
+  "D3_00038": DetalhesD3_00038,
+  "D3_00039": DetalhesD3_00039,
   "D3_00040": DetalhesD3_00040,
   "D3_00045": DetalhesD3_00045,
 };
@@ -874,7 +1074,15 @@ function VerificacaoRow({ r }: { r: ResultadoVerificacao }) {
             </div>
           )}
         </TableCell>
-        <TableCell className="text-xs text-[#045ba3] max-w-xs">{r.resumo}</TableCell>
+        <TableCell className="text-xs text-[#045ba3] max-w-xs">
+          {r.resumo}
+          {r.no_verificacao === "D1_00006" && r.temRetificacao && (
+            <div className="flex items-start gap-1 mt-1 text-[10px] text-[#b45309] leading-tight">
+              <AlertTriangle className="w-3 h-3 shrink-0 mt-px" />
+              <span>Há períodos com retificação (RE). A API SICONFI não fornece a data da homologação original nesses casos — a nota pode estar subestimada.</span>
+            </div>
+          )}
+        </TableCell>
       </TableRow>
 
       {open && (

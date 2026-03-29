@@ -731,18 +731,17 @@ function soData(d: Date): Date {
 // Mapa de verificações implementadas por código
 type VerificadorFn = (municipioId: number, codIbge: string, ano: number) => Promise<Partial<ResultadoVerificacao>>;
 
-// ── D1_00001: Homologação de todos os RREOs ────────────────────────────────
+// ── D1_00001: Entrega de todos os RREOs ────────────────────────────────────
 async function verificarD1_00001(municipioId: number, _codIbge: string, ano: number): Promise<Partial<ResultadoVerificacao>> {
   const { rows } = await db.query<{
     periodo: number; tipo_relatorio: string | null; periodicidade: string | null;
-    data_status: string | null; instituicao: string | null;
+    status_relatorio: string | null; data_status: string | null; instituicao: string | null;
   }>(
-    `SELECT periodo, tipo_relatorio, periodicidade, data_status, instituicao
+    `SELECT periodo, tipo_relatorio, periodicidade, status_relatorio, data_status, instituicao
      FROM siconfi_extrato_entregas
      WHERE municipio_id = $1
        AND exercicio = $2
        AND (entregavel ILIKE '%RREO%' OR entregavel ILIKE '%Relat%Resumido%')
-       AND status_relatorio = 'HO'
      ORDER BY periodo`,
     [municipioId, ano],
   );
@@ -766,7 +765,7 @@ async function verificarD1_00001(municipioId: number, _codIbge: string, ano: num
   const detalhes = periodosEsperados.map(p => {
     const r = entregues.get(p);
     return r
-      ? { periodo: p, label: labels[p], entregue: true, data_status: r.data_status, instituicao: r.instituicao }
+      ? { periodo: p, label: labels[p], entregue: true, status_relatorio: r.status_relatorio, data_status: r.data_status, instituicao: r.instituicao }
       : { periodo: p, label: labels[p], entregue: false };
   });
 
@@ -775,30 +774,33 @@ async function verificarD1_00001(municipioId: number, _codIbge: string, ano: num
   const nota = parseFloat((entreguesCount / total).toFixed(4));
 
   if (faltando.length === 0) {
-    return { status: "consistente", nota: 1, nota_max: 1, resumo: `${total}/${total} ${tipo} homologados.`, detalhes };
+    return { status: "consistente", nota: 1, nota_max: 1, resumo: `${total}/${total} ${tipo} entregues.`, detalhes };
   }
 
   const faltandoLabels = faltando.map(p => labels[p]).join(", ");
   return {
     status: "inconsistente", nota, nota_max: 1,
-    resumo: `${entreguesCount}/${total} ${tipo} homologados. Faltam: ${faltandoLabels}.`,
+    resumo: `${entreguesCount}/${total} ${tipo} entregues. Faltam: ${faltandoLabels}.`,
     detalhes,
   };
 }
 
-// ── D1_00006: Tempestividade na homologação dos RREOs ─────────────────────────
+// ── D1_00006: Tempestividade na entrega dos RREOs ─────────────────────────────
+// Usa a data_status mais cedo por período (HO ou RE). Para retificações (RE),
+// a API SICONFI não fornece a data da homologação original — a data disponível
+// é a da retificação, o que pode subestimar a nota quando o HO original foi no prazo.
 async function verificarD1_00006(municipioId: number, _codIbge: string, ano: number): Promise<Partial<ResultadoVerificacao>> {
   const { rows } = await db.query<{
     periodo: number; tipo_relatorio: string | null; periodicidade: string | null;
-    data_status: string | null; instituicao: string | null;
+    data_status: string | null; instituicao: string | null; status_relatorio: string | null;
   }>(
-    `SELECT periodo, tipo_relatorio, periodicidade, data_status, instituicao
+    `SELECT DISTINCT ON (periodo)
+       periodo, tipo_relatorio, periodicidade, data_status, instituicao, status_relatorio
      FROM siconfi_extrato_entregas
      WHERE municipio_id = $1
        AND exercicio = $2
        AND (entregavel ILIKE '%RREO%' OR entregavel ILIKE '%Relat%Resumido%')
-       AND status_relatorio = 'HO'
-     ORDER BY periodo`,
+     ORDER BY periodo, data_status ASC NULLS LAST`,
     [municipioId, ano],
   );
 
@@ -831,28 +833,29 @@ async function verificarD1_00006(municipioId: number, _codIbge: string, ano: num
 
     return {
       periodo: p, label: labels[p], entregue: true,
-      data_status: r.data_status, prazo: prazoStr,
-      intempestiva, instituicao: r.instituicao,
+      data_status: r.data_status, status_relatorio: r.status_relatorio,
+      prazo: prazoStr, intempestiva, instituicao: r.instituicao,
     };
   });
 
-  const noPrazo      = detalhes.filter(d => d.entregue && !d.intempestiva).length;
-  const intempestivos = detalhes.filter(d => d.entregue && d.intempestiva === true).length;
+  const temRetificacao = rows.some(r => r.status_relatorio?.trim() === "RE");
+  const noPrazo        = detalhes.filter(d => d.entregue && !d.intempestiva).length;
+  const intempestivos  = detalhes.filter(d => d.entregue && d.intempestiva === true).length;
   const nota = parseFloat((noPrazo / total).toFixed(4));
   const tipo = semestral ? "semestres" : "bimestres";
 
   if (intempestivos === 0 && noPrazo === total) {
     return {
       status: "consistente", nota: 1, nota_max: 1,
-      resumo: `${total}/${total} ${tipo} homologados no prazo.`,
-      detalhes,
+      resumo: `${total}/${total} ${tipo} entregues no prazo.`,
+      detalhes, temRetificacao,
     };
   }
 
   return {
     status: "inconsistente", nota, nota_max: 1,
     resumo: `${noPrazo}/${total} no prazo. ${intempestivos} intempestivo(s).`,
-    detalhes,
+    detalhes, temRetificacao,
   };
 }
 
@@ -893,7 +896,7 @@ async function verificarD1_00011(municipioId: number, _codIbge: string, ano: num
     instituicao: r.instituicao,
   }));
 
-  const nota = parseFloat(Math.max(0, 1 - countRE * 0.16).toFixed(4));
+  const nota = parseFloat(Math.max(0, 1 - countRE * 0.1).toFixed(4));
 
   if (countRE === 0) {
     return {
@@ -905,12 +908,14 @@ async function verificarD1_00011(municipioId: number, _codIbge: string, ano: num
 
   return {
     status: "inconsistente", nota, nota_max: 1,
-    resumo: `${countRE} retificação(ões) encontrada(s). Cada RE desconta 0,16 da nota.`,
+    resumo: `${countRE} retificação(ões) encontrada(s). Cada RE desconta 0,1 da nota.`,
     detalhes,
   };
 }
 
 // ── D3_00001: Resultado orçamentário no RREO Anexo 01, 6° bimestre ──────────
+// Identidade contábil: TotalReceitas + Deficit = TotalDespesasComSuperavit
+// Equivalente a: TotalReceitasComDeficit = TotalDespesasComSuperavit
 async function verificarD3_00001(municipioId: number, _codIbge: string, ano: number): Promise<Partial<ResultadoVerificacao>> {
   const { rows } = await db.query<{ cod_conta: string; coluna: string; valor: number }>(
     `SELECT cod_conta, coluna, SUM(valor)::float AS valor
@@ -919,7 +924,7 @@ async function verificarD3_00001(municipioId: number, _codIbge: string, ano: num
        AND exercicio = $2
        AND anexo = 'RREO-Anexo 01'
        AND periodo = 6
-       AND cod_conta IN ('TotalReceitas','TotalDespesas','Superavit')
+       AND cod_conta IN ('TotalReceitas','TotalDespesasComSuperavit','Superavit','Deficit')
        AND coluna IN ('Até o Bimestre (c)','DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)')
      GROUP BY cod_conta, coluna`,
     [municipioId, ano],
@@ -933,55 +938,55 @@ async function verificarD3_00001(municipioId: number, _codIbge: string, ano: num
     };
   }
 
-  const receitas  = rows.find(r => r.cod_conta === "TotalReceitas"  && r.coluna === "Até o Bimestre (c)");
-  const despesas  = rows.find(r => r.cod_conta === "TotalDespesas"  && r.coluna === "DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)");
-  const superavit = rows.find(r => r.cod_conta === "Superavit"      && r.coluna === "DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)");
+  const receitas       = rows.find(r => r.cod_conta === "TotalReceitas"           && r.coluna === "Até o Bimestre (c)");
+  const despesasSup    = rows.find(r => r.cod_conta === "TotalDespesasComSuperavit" && r.coluna === "DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)");
+  const superavit      = rows.find(r => r.cod_conta === "Superavit"               && r.coluna === "DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)");
+  const deficit        = rows.find(r => r.cod_conta === "Deficit"                 && r.coluna === "Até o Bimestre (c)");
 
-  if (!receitas || !despesas) {
+  if (!receitas || !despesasSup) {
     return {
       status: "nao_aplicavel", nota: 0, nota_max: 1,
-      resumo: "Dados de TotalReceitas ou TotalDespesas não encontrados no Anexo 01 do 6° bimestre.",
+      resumo: "Dados de TotalReceitas ou TotalDespesasComSuperavit não encontrados no Anexo 01 do 6° bimestre.",
       detalhes: [],
     };
   }
 
-  const totalReceitas = receitas.valor ?? 0;
-  const totalDespesas = despesas.valor ?? 0;
-  const resultadoCalculado = totalReceitas - totalDespesas;
-  const superavitInformado = superavit?.valor ?? 0;
+  const totalReceitas       = receitas.valor ?? 0;
+  const totalDespesasSup    = despesasSup.valor ?? 0;
+  const superavitInformado  = superavit?.valor ?? 0;
+  const deficitInformado    = deficit?.valor ?? 0;
+
+  // Identidade: TotalReceitas + Deficit = TotalDespesasComSuperavit
+  const receitasComDeficit = totalReceitas + deficitInformado;
+  const diferenca = receitasComDeficit - totalDespesasSup;
 
   const detalhes = [
     { item: "Total de Receitas", coluna: "Até o Bimestre (c)", valor: totalReceitas },
-    { item: "Total de Despesas", coluna: "Despesas Empenhadas Até o Bimestre (f)", valor: totalDespesas },
-    { item: "Resultado Calculado (Rec − Desp)", coluna: "—", valor: resultadoCalculado },
-    { item: "Superávit Informado no Demonstrativo", coluna: "Despesas Empenhadas Até o Bimestre (f)", valor: superavitInformado },
+    ...(deficitInformado > 0 ? [{ item: "(+) Déficit Informado", coluna: "Até o Bimestre (c)", valor: deficitInformado }] : []),
+    { item: "Total Receitas c/ Déficit", coluna: "—", valor: receitasComDeficit },
+    { item: "Total Despesas c/ Superávit", coluna: "Despesas Empenhadas Até o Bimestre (f)", valor: totalDespesasSup },
+    ...(superavitInformado > 0 ? [{ item: "(incl.) Superávit Informado", coluna: "Despesas Empenhadas Até o Bimestre (f)", valor: superavitInformado }] : []),
+    { item: "Diferença (deve ser zero)", coluna: "—", valor: diferenca },
   ];
 
-  const TOLERANCIA = 0.01; // centavos
-  let consistente = false;
-
-  if (resultadoCalculado > TOLERANCIA) {
-    // Superávit deve ser igual ao resultado positivo
-    consistente = Math.abs(superavitInformado - resultadoCalculado) <= TOLERANCIA;
-  } else {
-    // Déficit ou equilíbrio — superávit deve ser 0 ou nulo
-    consistente = Math.abs(superavitInformado) <= TOLERANCIA;
-  }
-
+  const TOLERANCIA = 1.0; // R$ 1,00 — tolerância para arredondamentos de centavos
   const fmt = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  if (consistente) {
+  if (Math.abs(diferenca) <= TOLERANCIA) {
+    const tipo = superavitInformado > 0 ? `superávit de ${fmt(superavitInformado)}`
+               : deficitInformado > 0   ? `déficit de ${fmt(deficitInformado)}`
+               : "resultado equilibrado";
     return {
       status: "consistente", nota: 1, nota_max: 1,
-      resumo: `Resultado orçamentário (${fmt(resultadoCalculado)}) confere com o superávit informado.`,
+      resumo: `Balanço Orçamentário equilibrado (${tipo}). Identidade TotalReceitas + Déficit = TotalDespesas + Superávit verificada.`,
       detalhes,
     };
   }
 
   return {
     status: "inconsistente", nota: 0, nota_max: 1,
-    resumo: `Resultado calculado ${fmt(resultadoCalculado)} difere do superávit informado ${fmt(superavitInformado)}.`,
+    resumo: `Balanço Orçamentário desequilibrado em ${fmt(Math.abs(diferenca))}. TotalReceitas + Déficit (${fmt(receitasComDeficit)}) ≠ TotalDespesas + Superávit (${fmt(totalDespesasSup)}).`,
     detalhes,
   };
 }
@@ -1006,19 +1011,29 @@ async function verificarD3_00002(municipioId: number, _codIbge: string, ano: num
 
   const periodos = periodosRows.map(r => r.periodo);
 
-  // Tipos de comparação disponíveis (pagas não existe no Anexo 02)
+  // Três comparações conforme especificação:
+  // An01: cod_conta = 'TotalDespesas', rotulo = 'Padrão'
+  // An02: cod_conta = 'RREO2TotalDespesas', rotulo = 'Total das Despesas Exceto Intra-Orçamentárias'
   const comparacoes = [
     {
+      tipo: "Dotação Atualizada",
+      colAn01: "DOTAÇÃO ATUALIZADA (e)",
+      colAn02: "DOTAÇÃO ATUALIZADA (a)",
+    },
+    {
       tipo: "Empenhadas",
-      colAn02: "DESPESAS EMPENHADAS ATÉ O BIMESTRE (b)",
       colAn01: "DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)",
+      colAn02: "DESPESAS EMPENHADAS ATÉ O BIMESTRE (b)",
     },
     {
       tipo: "Liquidadas",
-      colAn02: "DESPESAS LIQUIDADAS ATÉ O BIMESTRE (d)",
       colAn01: "DESPESAS LIQUIDADAS ATÉ O BIMESTRE (h)",
+      colAn02: "DESPESAS LIQUIDADAS ATÉ O BIMESTRE (d)",
     },
   ];
+
+  const colunasAn01 = comparacoes.map(c => c.colAn01);
+  const colunasAn02 = comparacoes.map(c => c.colAn02);
 
   // Busca todos os valores relevantes de uma vez
   const { rows: dados } = await db.query<{
@@ -1031,19 +1046,21 @@ async function verificarD3_00002(municipioId: number, _codIbge: string, ano: num
        AND periodo = ANY($3::int[])
        AND (
          (anexo = 'RREO-Anexo 01'
-           AND cod_conta = 'DespesasExcetoIntraOrcamentarias'
-           AND coluna IN ('DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)', 'DESPESAS LIQUIDADAS ATÉ O BIMESTRE (h)'))
+           AND cod_conta = 'TotalDespesas'
+           AND rotulo = 'Padrão'
+           AND coluna = ANY($4::text[]))
          OR
          (anexo = 'RREO-Anexo 02'
+           AND cod_conta = 'RREO2TotalDespesas'
            AND rotulo = 'Total das Despesas Exceto Intra-Orçamentárias'
-           AND coluna IN ('DESPESAS EMPENHADAS ATÉ O BIMESTRE (b)', 'DESPESAS LIQUIDADAS ATÉ O BIMESTRE (d)'))
+           AND coluna = ANY($5::text[]))
        )
      GROUP BY periodo, anexo, coluna
      ORDER BY periodo, anexo, coluna`,
-    [municipioId, ano, periodos],
+    [municipioId, ano, periodos, colunasAn01, colunasAn02],
   );
 
-  // Indexa: periodo → anexo → coluna → valor
+  // Indexa: "periodo|anexo|coluna" → valor
   const idx = new Map<string, number>();
   for (const d of dados) {
     idx.set(`${d.periodo}|${d.anexo}|${d.coluna}`, d.valor ?? 0);
@@ -1051,56 +1068,52 @@ async function verificarD3_00002(municipioId: number, _codIbge: string, ano: num
 
   const TOLERANCIA = 1.00;
   const detalhes: object[] = [];
-  let totalComparacoes = 0;
-  let comparacoesOk = 0;
+  let periodosOk = 0;
 
   for (const periodo of periodos) {
+    const resultsPeriodo: { tipo: string; vAn01: number; vAn02: number; diferenca: number; ok: boolean }[] = [];
+
     for (const cmp of comparacoes) {
-      const keyAn02 = `${periodo}|RREO-Anexo 02|${cmp.colAn02}`;
-      const keyAn01 = `${periodo}|RREO-Anexo 01|${cmp.colAn01}`;
-      if (!idx.has(keyAn02) && !idx.has(keyAn01)) continue; // sem dados neste ponto
+      // Ausência de linha = 0, conforme especificação
+      const vAn01 = idx.get(`${periodo}|RREO-Anexo 01|${cmp.colAn01}`) ?? 0;
+      const vAn02 = idx.get(`${periodo}|RREO-Anexo 02|${cmp.colAn02}`) ?? 0;
+      const diferenca = vAn02 - vAn01;
+      const ok = Math.abs(diferenca) <= TOLERANCIA;
+      resultsPeriodo.push({ tipo: cmp.tipo, vAn01, vAn02, diferenca, ok });
+    }
 
-      const vAn02 = idx.get(keyAn02) ?? 0;
-      const vAn01 = idx.get(keyAn01) ?? 0;
+    const periodoConsistente = resultsPeriodo.every(r => r.ok);
+    if (periodoConsistente) periodosOk++;
 
-      totalComparacoes++;
-      const igualou = Math.abs(vAn02 - vAn01) <= TOLERANCIA;
-      if (igualou) comparacoesOk++;
-
+    for (const r of resultsPeriodo) {
       detalhes.push({
         periodo,
         label: BIMESTRE_LABELS[periodo] ?? `Período ${periodo}`,
-        tipo: cmp.tipo,
-        valor_anexo01: vAn01,
-        valor_anexo02: vAn02,
-        diferenca: vAn02 - vAn01,
-        ok: igualou,
+        tipo: r.tipo,
+        valor_anexo01: r.vAn01,
+        valor_anexo02: r.vAn02,
+        diferenca: r.diferenca,
+        ok: r.ok,
+        periodo_consistente: periodoConsistente,
       });
     }
   }
 
-  if (totalComparacoes === 0) {
-    return {
-      status: "nao_aplicavel", nota: 0, nota_max: 1,
-      resumo: "Nenhum dado comparável encontrado nos Anexos 01 e 02.",
-      detalhes: [],
-    };
-  }
+  const totalPeriodos = periodos.length;
+  const periodosInconsistentes = totalPeriodos - periodosOk;
+  const nota = parseFloat((periodosOk / totalPeriodos).toFixed(4));
 
-  const nota = parseFloat((comparacoesOk / totalComparacoes).toFixed(4));
-  const inconsistentes = totalComparacoes - comparacoesOk;
-
-  if (inconsistentes === 0) {
+  if (periodosInconsistentes === 0) {
     return {
       status: "consistente", nota: 1, nota_max: 1,
-      resumo: `Todas as ${totalComparacoes} comparações consistentes entre Anexo 01 e Anexo 02 (${periodos.length} período(s)).`,
+      resumo: `Todos os ${totalPeriodos} período(s) consistentes entre Anexo 01 (TotalDespesas) e Anexo 02 (RREO2TotalDespesas) nas 3 comparações.`,
       detalhes,
     };
   }
 
   return {
-    status: "inconsistente", nota: 0, nota_max: 1,
-    resumo: `${inconsistentes} de ${totalComparacoes} comparações com divergência entre Anexo 01 e Anexo 02.`,
+    status: "inconsistente", nota, nota_max: 1,
+    resumo: `${periodosInconsistentes} de ${totalPeriodos} período(s) com divergência entre Anexo 01 e Anexo 02 (Dotação Atualizada, Empenhadas ou Liquidadas).`,
     detalhes,
   };
 }
@@ -1757,55 +1770,44 @@ async function verificarD3_00027(
 }
 
 // ── D3_00028: Receitas Realizadas Até o Bimestre — Anexo 01 × Anexo 06 ────────
-// Regra 1: An06 ReceitasCorrentesExcetoFontesRPPS "RECEITAS REALIZADAS (a)"
-//          = An01 ReceitasCorrentes "Até o Bimestre (c)"
-// Regra 2: An06 ReceitasDeCapitalExcetoFontesRPPS "RECEITAS REALIZADAS (a)"
+// Regra 1: An06 RREO6ReceitasTributarias "RECEITAS REALIZADAS (a)"
+//          = An01 ReceitaTributaria "Até o Bimestre (c)"
+// Regra 2: An06 RREO6TransferenciasCorrentes "RECEITAS REALIZADAS (a)"
+//          = An01 TransferenciasCorrentes "Até o Bimestre (c)"
+// Regra 3: An06 ReceitasDeCapitalExcetoFontesRPPS "RECEITAS REALIZADAS (a)"
 //          = An01 ReceitasDeCapital "Até o Bimestre (c)"
+// Ausência de linha = 0 (não é erro por si só)
+// Score: por período — todas as 3 comparações devem passar
 async function verificarD3_00028(
   municipioId: number, _codIbge: string, ano: number,
 ): Promise<Partial<ResultadoVerificacao>> {
-  const { rows } = await db.query<{
-    periodo: number; anexo: string; cod_conta: string; coluna: string; valor: number;
-  }>(
-    `SELECT periodo, anexo, cod_conta, coluna, SUM(valor)::float AS valor
-     FROM siconfi_rreo
-     WHERE municipio_id = $1
-       AND exercicio = $2
-       AND rotulo = 'Padrão'
-       AND (
-         (anexo = 'RREO-Anexo 06'
-           AND cod_conta IN ('ReceitasCorrentesExcetoFontesRPPS','ReceitasDeCapitalExcetoFontesRPPS')
-           AND coluna = 'RECEITAS REALIZADAS (a)')
-         OR
-         (anexo = 'RREO-Anexo 01'
-           AND cod_conta IN ('ReceitasCorrentes','ReceitasDeCapital')
-           AND coluna = 'Até o Bimestre (c)')
-       )
-     GROUP BY periodo, anexo, cod_conta, coluna`,
+  const { rows: periodosRows } = await db.query<{ periodo: number }>(
+    `SELECT DISTINCT periodo FROM siconfi_rreo
+     WHERE municipio_id = $1 AND exercicio = $2
+     ORDER BY periodo`,
     [municipioId, ano],
   );
 
-  if (rows.length === 0) {
+  if (periodosRows.length === 0) {
     return {
       status: "nao_aplicavel", nota: 0, nota_max: 1,
-      resumo: "Nenhum dado dos Anexos 01 e 06 encontrado. Importe o RREO primeiro.",
+      resumo: "Nenhum dado do RREO encontrado. Importe o RREO primeiro.",
       detalhes: [],
     };
   }
 
-  const idx = new Map<string, number>();
-  const periodos = new Set<number>();
-  for (const d of rows) {
-    idx.set(`${d.periodo}|${d.anexo}|${d.cod_conta}|${d.coluna}`, d.valor ?? 0);
-    periodos.add(d.periodo);
-  }
+  const periodos = periodosRows.map(r => r.periodo);
 
-  const TOLERANCIA = 1.00;
-  const blocos = [
+  const comparacoes = [
     {
-      nome: "Receitas Correntes",
-      codAn06: "ReceitasCorrentesExcetoFontesRPPS",
-      codAn01: "ReceitasCorrentes",
+      nome: "Receita Tributária",
+      codAn06: "RREO6ReceitasTributarias",
+      codAn01: "ReceitaTributaria",
+    },
+    {
+      nome: "Transferências Correntes",
+      codAn06: "RREO6TransferenciasCorrentes",
+      codAn01: "TransferenciasCorrentes",
     },
     {
       nome: "Receitas de Capital",
@@ -1814,57 +1816,79 @@ async function verificarD3_00028(
     },
   ];
 
+  const codsAn06 = comparacoes.map(c => c.codAn06);
+  const codsAn01 = comparacoes.map(c => c.codAn01);
+
+  const { rows: dados } = await db.query<{
+    periodo: number; anexo: string; cod_conta: string; valor: number;
+  }>(
+    `SELECT periodo, anexo, cod_conta, SUM(valor)::float AS valor
+     FROM siconfi_rreo
+     WHERE municipio_id = $1
+       AND exercicio = $2
+       AND rotulo = 'Padrão'
+       AND (
+         (anexo = 'RREO-Anexo 06' AND cod_conta = ANY($3::text[]) AND coluna = 'RECEITAS REALIZADAS (a)')
+         OR
+         (anexo = 'RREO-Anexo 01' AND cod_conta = ANY($4::text[]) AND coluna = 'Até o Bimestre (c)')
+       )
+     GROUP BY periodo, anexo, cod_conta`,
+    [municipioId, ano, codsAn06, codsAn01],
+  );
+
+  const idx = new Map<string, number>();
+  for (const d of dados) {
+    idx.set(`${d.periodo}|${d.anexo}|${d.cod_conta}`, d.valor ?? 0);
+  }
+
+  const TOLERANCIA = 1.00;
   const detalhes: object[] = [];
-  let totalComparacoes = 0;
-  let comparacoesOk = 0;
+  let periodosOk = 0;
 
-  for (const periodo of Array.from(periodos).sort()) {
+  for (const periodo of periodos) {
     const label = BIMESTRE_LABELS[periodo] ?? `Período ${periodo}`;
-    for (const { nome, codAn06, codAn01 } of blocos) {
-      const keyAn06 = `${periodo}|RREO-Anexo 06|${codAn06}|RECEITAS REALIZADAS (a)`;
-      const keyAn01 = `${periodo}|RREO-Anexo 01|${codAn01}|Até o Bimestre (c)`;
-      if (!idx.has(keyAn06) && !idx.has(keyAn01)) continue;
+    const resultsPeriodo: { nome: string; vAn06: number; vAn01: number; diferenca: number; ok: boolean }[] = [];
 
-      const vAn06 = idx.get(keyAn06) ?? 0;
-      const vAn01 = idx.get(keyAn01) ?? 0;
+    for (const { nome, codAn06, codAn01 } of comparacoes) {
+      // Ausência = 0, conforme especificação
+      const vAn06 = idx.get(`${periodo}|RREO-Anexo 06|${codAn06}`) ?? 0;
+      const vAn01 = idx.get(`${periodo}|RREO-Anexo 01|${codAn01}`) ?? 0;
+      const diferenca = vAn06 - vAn01;
+      const ok = Math.abs(diferenca) <= TOLERANCIA;
+      resultsPeriodo.push({ nome, vAn06, vAn01, diferenca, ok });
+    }
 
-      totalComparacoes++;
-      const ok = Math.abs(vAn06 - vAn01) <= TOLERANCIA;
-      if (ok) comparacoesOk++;
+    const periodoOk = resultsPeriodo.every(r => r.ok);
+    if (periodoOk) periodosOk++;
 
+    for (const r of resultsPeriodo) {
       detalhes.push({
-        periodo, label, nome,
-        descricao_an06: `An06 — ${codAn06} | RECEITAS REALIZADAS (a)`,
-        descricao_an01: `An01 — ${codAn01} | Até o Bimestre (c)`,
-        valor_an06: vAn06,
-        valor_an01: vAn01,
-        diferenca: vAn06 - vAn01,
-        ok,
+        periodo, label,
+        nome: r.nome,
+        valor_an06: r.vAn06,
+        valor_an01: r.vAn01,
+        diferenca: r.diferenca,
+        ok: r.ok,
+        periodo_consistente: periodoOk,
       });
     }
   }
 
-  if (totalComparacoes === 0) {
-    return {
-      status: "nao_aplicavel", nota: 0, nota_max: 1,
-      resumo: "Nenhum par comparável encontrado entre Anexo 01 e Anexo 06.",
-      detalhes: [],
-    };
-  }
+  const totalPeriodos = periodos.length;
+  const periodosInconsistentes = totalPeriodos - periodosOk;
+  const nota = parseFloat((periodosOk / totalPeriodos).toFixed(4));
 
-  const inconsistentes = totalComparacoes - comparacoesOk;
-
-  if (inconsistentes === 0) {
+  if (periodosInconsistentes === 0) {
     return {
       status: "consistente", nota: 1, nota_max: 1,
-      resumo: `Todas as ${totalComparacoes} comparações consistentes entre Anexo 01 e Anexo 06 (${periodos.size} período(s), Correntes + Capital).`,
+      resumo: `Todos os ${totalPeriodos} período(s) consistentes — Receita Tributária, Transferências Correntes e Receitas de Capital iguais entre Anexo 01 e Anexo 06.`,
       detalhes,
     };
   }
 
   return {
-    status: "inconsistente", nota: 0, nota_max: 1,
-    resumo: `${inconsistentes} de ${totalComparacoes} comparações com divergência de Receitas Realizadas entre Anexo 01 e Anexo 06.`,
+    status: "inconsistente", nota, nota_max: 1,
+    resumo: `${periodosInconsistentes} de ${totalPeriodos} período(s) com divergência de Receitas Realizadas entre Anexo 01 e Anexo 06 (Tributária, Transferências ou Capital).`,
     detalhes,
   };
 }
@@ -2076,100 +2100,426 @@ async function verificarD3_00030(
   };
 }
 
-// ── D3_00040: Receitas de Operações de Crédito — Anexo 01 × Anexo 09 ─────────
+// ── D3_00037: Investimentos — Anexo 01 × Anexo 09 ────────────────────────────
 // Aplica-se apenas ao período 6.
-// Regra 1: An09 RREO9ReceitasDeOperacoesDeCredito "RECEITAS REALIZADAS (b)"
-//          = An01 ReceitasDeOperacoesDeCredito "Até o Bimestre (c)"
-// Regra 2: An09 RREO9ReceitasDeOperacoesDeCredito "PREVISÃO ATUALIZADA (a)"
-//          = An01 ReceitasDeOperacoesDeCredito "PREVISÃO ATUALIZADA (a)"
-// Ausência simultânea nos dois anexos → válido (município sem operações de crédito)
-// Presença em apenas um → inválido
-async function verificarD3_00040(
+// Regra 1 (Dotação Atualizada):
+//   An01 SUM(Investimentos + InvestimentosIntra) col="DOTAÇÃO ATUALIZADA (e)"
+//   = An09 Investimentos col="DOTAÇÃO ATUALIZADA (d)"
+// Regra 2 (Empenhadas):
+//   An01 SUM(Investimentos + InvestimentosIntra) col="DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)"
+//   = An09 Investimentos col="DESPESAS EMPENHADAS (e)"
+// Ausência de linha = 0. Consistente apenas se AMBAS as regras passarem.
+async function verificarD3_00037(
   municipioId: number, _codIbge: string, ano: number,
 ): Promise<Partial<ResultadoVerificacao>> {
   const { rows } = await db.query<{
-    anexo: string; coluna: string; valor: number;
+    fonte: string; cod_conta: string; coluna: string; valor: number;
   }>(
-    `SELECT anexo, coluna, SUM(valor)::float AS valor
+    `SELECT
+       CASE
+         WHEN anexo = 'RREO-Anexo 01' THEN 'An01'
+         ELSE 'An09'
+       END AS fonte,
+       cod_conta,
+       coluna,
+       SUM(valor)::float AS valor
      FROM siconfi_rreo
      WHERE municipio_id = $1
        AND exercicio = $2
        AND periodo = 6
        AND rotulo = 'Padrão'
        AND (
-         (anexo = 'RREO-Anexo 09' AND cod_conta = 'RREO9ReceitasDeOperacoesDeCredito'
-           AND coluna IN ('RECEITAS REALIZADAS (b)','PREVISÃO ATUALIZADA (a)'))
+         (anexo = 'RREO-Anexo 01'
+           AND cod_conta IN ('Investimentos','InvestimentosIntra')
+           AND coluna IN ('DOTAÇÃO ATUALIZADA (e)','DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)'))
          OR
-         (anexo = 'RREO-Anexo 01' AND cod_conta = 'ReceitasDeOperacoesDeCredito'
-           AND coluna IN ('Até o Bimestre (c)','PREVISÃO ATUALIZADA (a)'))
+         (anexo = 'RREO-Anexo 09'
+           AND cod_conta = 'Investimentos'
+           AND coluna IN ('DOTAÇÃO ATUALIZADA (d)','DESPESAS EMPENHADAS (e)'))
        )
-     GROUP BY anexo, coluna`,
+     GROUP BY fonte, cod_conta, coluna`,
     [municipioId, ano],
   );
 
   const idx = new Map<string, number>();
-  for (const d of rows) idx.set(`${d.anexo}|${d.coluna}`, d.valor ?? 0);
+  for (const d of rows) idx.set(`${d.fonte}|${d.cod_conta}|${d.coluna}`, d.valor ?? 0);
 
-  const temAn09 = idx.has("RREO-Anexo 09|RECEITAS REALIZADAS (b)") ||
-                  idx.has("RREO-Anexo 09|PREVISÃO ATUALIZADA (a)");
-  const temAn01 = idx.has("RREO-Anexo 01|Até o Bimestre (c)") ||
-                  idx.has("RREO-Anexo 01|PREVISÃO ATUALIZADA (a)");
+  const getAn01 = (cod: string, col: string) => idx.get(`An01|${cod}|${col}`) ?? 0;
+  const getAn09 = (cod: string, col: string) => idx.get(`An09|${cod}|${col}`) ?? 0;
 
-  // Situação 1: nenhum dos dois → válido
-  if (!temAn09 && !temAn01) {
-    return {
-      status: "consistente", nota: 1, nota_max: 1,
-      resumo: "Nenhuma linha de Operações de Crédito nos Anexos 01 e 09 — município sem operações de crédito (válido).",
-      detalhes: [],
-    };
-  }
+  const an01InvDotacao      = getAn01("Investimentos",      "DOTAÇÃO ATUALIZADA (e)");
+  const an01IntraDotacao    = getAn01("InvestimentosIntra", "DOTAÇÃO ATUALIZADA (e)");
+  const an01InvEmpenhadas   = getAn01("Investimentos",      "DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)");
+  const an01IntraEmpenhadas = getAn01("InvestimentosIntra", "DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)");
 
-  // Situação 2: apenas um dos dois → inválido
-  if (temAn09 !== temAn01) {
-    return {
-      status: "inconsistente", nota: 0, nota_max: 1,
-      resumo: `Linha de Operações de Crédito presente apenas no ${temAn09 ? "Anexo 09" : "Anexo 01"} — inconsistência entre demonstrativos.`,
-      detalhes: [],
-    };
-  }
+  const an01Dotacao    = an01InvDotacao    + an01IntraDotacao;
+  const an09Dotacao    = getAn09("Investimentos", "DOTAÇÃO ATUALIZADA (d)");
+  const an01Empenhadas = an01InvEmpenhadas + an01IntraEmpenhadas;
+  const an09Empenhadas = getAn09("Investimentos", "DESPESAS EMPENHADAS (e)");
 
-  // Situação 3: ambos existem — comparar os dois pares
-  const TOLERANCIA = 1.00;
-  const comparacoes = [
+  const okDotacao    = Math.abs(an01Dotacao    - an09Dotacao)    < 0.01;
+  const okEmpenhadas = Math.abs(an01Empenhadas - an09Empenhadas) < 0.01;
+  const consistente  = okDotacao && okEmpenhadas;
+
+  const detalhes = [
     {
-      nome: "Receita Realizada",
-      vAn09: idx.get("RREO-Anexo 09|RECEITAS REALIZADAS (b)") ?? null,
-      vAn01: idx.get("RREO-Anexo 01|Até o Bimestre (c)") ?? null,
-      colAn09: "RECEITAS REALIZADAS (b)",
-      colAn01: "Até o Bimestre (c)",
+      comparacao: "Dotação Atualizada",
+      col_an01: "DOTAÇÃO ATUALIZADA (e)",
+      col_an09: "DOTAÇÃO ATUALIZADA (d)",
+      an01_valor: an01Dotacao,
+      an01_componentes: [
+        { cod_conta: "Investimentos",      valor: an01InvDotacao },
+        { cod_conta: "InvestimentosIntra", valor: an01IntraDotacao },
+      ],
+      an09_valor: an09Dotacao,
+      an09_cod_conta: "Investimentos",
+      diferenca: an01Dotacao - an09Dotacao,
+      consistente: okDotacao,
     },
     {
-      nome: "Previsão Atualizada",
-      vAn09: idx.get("RREO-Anexo 09|PREVISÃO ATUALIZADA (a)") ?? null,
-      vAn01: idx.get("RREO-Anexo 01|PREVISÃO ATUALIZADA (a)") ?? null,
-      colAn09: "PREVISÃO ATUALIZADA (a)",
-      colAn01: "PREVISÃO ATUALIZADA (a)",
+      comparacao: "Despesas Empenhadas",
+      col_an01: "DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)",
+      col_an09: "DESPESAS EMPENHADAS (e)",
+      an01_valor: an01Empenhadas,
+      an01_componentes: [
+        { cod_conta: "Investimentos",      valor: an01InvEmpenhadas },
+        { cod_conta: "InvestimentosIntra", valor: an01IntraEmpenhadas },
+      ],
+      an09_valor: an09Empenhadas,
+      an09_cod_conta: "Investimentos",
+      diferenca: an01Empenhadas - an09Empenhadas,
+      consistente: okEmpenhadas,
     },
   ];
 
-  const detalhes: object[] = [];
-  let totalOk = 0;
-
-  for (const { nome, vAn09, vAn01, colAn09, colAn01 } of comparacoes) {
-    const ok = vAn09 !== null && vAn01 !== null && Math.abs(vAn09 - vAn01) <= TOLERANCIA;
-    if (ok) totalOk++;
-    detalhes.push({
-      nome,
-      descricao_an09: `An09 — RREO9ReceitasDeOperacoesDeCredito | ${colAn09}`,
-      descricao_an01: `An01 — ReceitasDeOperacoesDeCredito | ${colAn01}`,
-      valor_an09: vAn09,
-      valor_an01: vAn01,
-      diferenca: vAn09 !== null && vAn01 !== null ? vAn09 - vAn01 : null,
-      ok,
-    });
+  if (consistente) {
+    return {
+      status: "consistente", nota: 1, nota_max: 1,
+      resumo: "6° Bimestre consistente — Investimentos iguais entre Anexo 01 e Anexo 09.",
+      detalhes,
+    };
   }
 
-  if (totalOk === comparacoes.length) {
+  return {
+    status: "inconsistente", nota: 0, nota_max: 1,
+    resumo: "6° Bimestre com divergência nos Investimentos entre Anexo 01 e Anexo 09.",
+    detalhes,
+  };
+}
+
+// ── D3_00038: Inversões Financeiras — Anexo 01 × Anexo 09 ────────────────────
+// Aplica-se apenas ao período 6.
+// Regra 1 (Dotação Atualizada):
+//   An01 SUM(InversoesFinanceiras + InversoesFinanceirasIntra) col="DOTAÇÃO ATUALIZADA (e)"
+//   = An09 InversoesFinanceiras col="DOTAÇÃO ATUALIZADA (d)"
+// Regra 2 (Empenhadas):
+//   An01 SUM(InversoesFinanceiras + InversoesFinanceirasIntra) col="DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)"
+//   = An09 InversoesFinanceiras col="DESPESAS EMPENHADAS (e)"
+// Ausência de linha = 0. Consistente apenas se AMBAS as regras passarem.
+async function verificarD3_00038(
+  municipioId: number, _codIbge: string, ano: number,
+): Promise<Partial<ResultadoVerificacao>> {
+  const { rows } = await db.query<{
+    fonte: string; cod_conta: string; coluna: string; valor: number;
+  }>(
+    `SELECT
+       CASE
+         WHEN anexo = 'RREO-Anexo 01' THEN 'An01'
+         ELSE 'An09'
+       END AS fonte,
+       cod_conta,
+       coluna,
+       SUM(valor)::float AS valor
+     FROM siconfi_rreo
+     WHERE municipio_id = $1
+       AND exercicio = $2
+       AND periodo = 6
+       AND rotulo = 'Padrão'
+       AND (
+         (anexo = 'RREO-Anexo 01'
+           AND cod_conta IN ('InversoesFinanceiras','InversoesFinanceirasIntra')
+           AND coluna IN ('DOTAÇÃO ATUALIZADA (e)','DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)'))
+         OR
+         (anexo = 'RREO-Anexo 09'
+           AND cod_conta = 'InversoesFinanceiras'
+           AND coluna IN ('DOTAÇÃO ATUALIZADA (d)','DESPESAS EMPENHADAS (e)'))
+       )
+     GROUP BY fonte, cod_conta, coluna`,
+    [municipioId, ano],
+  );
+
+  const idx = new Map<string, number>();
+  for (const d of rows) idx.set(`${d.fonte}|${d.cod_conta}|${d.coluna}`, d.valor ?? 0);
+
+  const getAn01 = (cod: string, col: string) => idx.get(`An01|${cod}|${col}`) ?? 0;
+  const getAn09 = (cod: string, col: string) => idx.get(`An09|${cod}|${col}`) ?? 0;
+
+  const an01InvDotacao      = getAn01("InversoesFinanceiras",      "DOTAÇÃO ATUALIZADA (e)");
+  const an01IntraDotacao    = getAn01("InversoesFinanceirasIntra", "DOTAÇÃO ATUALIZADA (e)");
+  const an01InvEmpenhadas   = getAn01("InversoesFinanceiras",      "DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)");
+  const an01IntraEmpenhadas = getAn01("InversoesFinanceirasIntra", "DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)");
+
+  const an01Dotacao    = an01InvDotacao    + an01IntraDotacao;
+  const an09Dotacao    = getAn09("InversoesFinanceiras", "DOTAÇÃO ATUALIZADA (d)");
+  const an01Empenhadas = an01InvEmpenhadas + an01IntraEmpenhadas;
+  const an09Empenhadas = getAn09("InversoesFinanceiras", "DESPESAS EMPENHADAS (e)");
+
+  const okDotacao    = Math.abs(an01Dotacao    - an09Dotacao)    < 0.01;
+  const okEmpenhadas = Math.abs(an01Empenhadas - an09Empenhadas) < 0.01;
+  const consistente  = okDotacao && okEmpenhadas;
+
+  const detalhes = [
+    {
+      comparacao: "Dotação Atualizada",
+      col_an01: "DOTAÇÃO ATUALIZADA (e)",
+      col_an09: "DOTAÇÃO ATUALIZADA (d)",
+      an01_valor: an01Dotacao,
+      an01_componentes: [
+        { cod_conta: "InversoesFinanceiras",      valor: an01InvDotacao },
+        { cod_conta: "InversoesFinanceirasIntra", valor: an01IntraDotacao },
+      ],
+      an09_valor: an09Dotacao,
+      an09_cod_conta: "InversoesFinanceiras",
+      diferenca: an01Dotacao - an09Dotacao,
+      consistente: okDotacao,
+    },
+    {
+      comparacao: "Despesas Empenhadas",
+      col_an01: "DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)",
+      col_an09: "DESPESAS EMPENHADAS (e)",
+      an01_valor: an01Empenhadas,
+      an01_componentes: [
+        { cod_conta: "InversoesFinanceiras",      valor: an01InvEmpenhadas },
+        { cod_conta: "InversoesFinanceirasIntra", valor: an01IntraEmpenhadas },
+      ],
+      an09_valor: an09Empenhadas,
+      an09_cod_conta: "InversoesFinanceiras",
+      diferenca: an01Empenhadas - an09Empenhadas,
+      consistente: okEmpenhadas,
+    },
+  ];
+
+  if (consistente) {
+    return {
+      status: "consistente", nota: 1, nota_max: 1,
+      resumo: "6° Bimestre consistente — Inversões Financeiras iguais entre Anexo 01 e Anexo 09.",
+      detalhes,
+    };
+  }
+
+  return {
+    status: "inconsistente", nota: 0, nota_max: 1,
+    resumo: "6° Bimestre com divergência nas Inversões Financeiras entre Anexo 01 e Anexo 09.",
+    detalhes,
+  };
+}
+
+// ── D3_00039: Amortização da Dívida — Anexo 01 × Anexo 09 ────────────────────
+// Aplica-se apenas ao período 6.
+// Regra 1 (Dotação Atualizada):
+//   An01 SUM(AmortizacaoDaDivida + AmortizacaoDaDividaIntra) col="DOTAÇÃO ATUALIZADA (e)"
+//   = An09 AmortizacaoDaDivida col="DOTAÇÃO ATUALIZADA (d)"
+// Regra 2 (Empenhadas):
+//   An01 SUM(AmortizacaoDaDivida + AmortizacaoDaDividaIntra) col="DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)"
+//   = An09 AmortizacaoDaDivida col="DESPESAS EMPENHADAS (e)"
+// Ausência de linha = 0 (AmortizacaoDaDividaIntra pode não existir).
+// Consistente apenas se AMBAS as regras passarem.
+async function verificarD3_00039(
+  municipioId: number, _codIbge: string, ano: number,
+): Promise<Partial<ResultadoVerificacao>> {
+  const { rows } = await db.query<{
+    fonte: string; cod_conta: string; coluna: string; valor: number;
+  }>(
+    `SELECT
+       CASE
+         WHEN anexo = 'RREO-Anexo 01' THEN 'An01'
+         ELSE 'An09'
+       END AS fonte,
+       cod_conta,
+       coluna,
+       SUM(valor)::float AS valor
+     FROM siconfi_rreo
+     WHERE municipio_id = $1
+       AND exercicio = $2
+       AND periodo = 6
+       AND rotulo = 'Padrão'
+       AND (
+         (anexo = 'RREO-Anexo 01'
+           AND cod_conta IN ('AmortizacaoDaDivida','AmortizacaoDaDividaIntra')
+           AND coluna IN ('DOTAÇÃO ATUALIZADA (e)','DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)'))
+         OR
+         (anexo = 'RREO-Anexo 09'
+           AND cod_conta = 'AmortizacaoDaDivida'
+           AND coluna IN ('DOTAÇÃO ATUALIZADA (d)','DESPESAS EMPENHADAS (e)'))
+       )
+     GROUP BY fonte, cod_conta, coluna`,
+    [municipioId, ano],
+  );
+
+  // Índice: "fonte|cod_conta|coluna" → valor
+  const idx = new Map<string, number>();
+  for (const d of rows) idx.set(`${d.fonte}|${d.cod_conta}|${d.coluna}`, d.valor ?? 0);
+
+  // Helpers para obter valor individual por conta
+  const getAn01 = (cod: string, col: string) => idx.get(`An01|${cod}|${col}`) ?? 0;
+  const getAn09 = (cod: string, col: string) => idx.get(`An09|${cod}|${col}`) ?? 0;
+
+  // Valores individuais An01 por coluna
+  const an01DivDotacao      = getAn01("AmortizacaoDaDivida",      "DOTAÇÃO ATUALIZADA (e)");
+  const an01IntraDotacao    = getAn01("AmortizacaoDaDividaIntra",  "DOTAÇÃO ATUALIZADA (e)");
+  const an01DivEmpenhadas   = getAn01("AmortizacaoDaDivida",      "DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)");
+  const an01IntraEmpenhadas = getAn01("AmortizacaoDaDividaIntra",  "DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)");
+
+  const an01Dotacao    = an01DivDotacao    + an01IntraDotacao;
+  const an09Dotacao    = getAn09("AmortizacaoDaDivida", "DOTAÇÃO ATUALIZADA (d)");
+  const an01Empenhadas = an01DivEmpenhadas + an01IntraEmpenhadas;
+  const an09Empenhadas = getAn09("AmortizacaoDaDivida", "DESPESAS EMPENHADAS (e)");
+
+  const okDotacao    = Math.abs(an01Dotacao    - an09Dotacao)    < 0.01;
+  const okEmpenhadas = Math.abs(an01Empenhadas - an09Empenhadas) < 0.01;
+  const consistente  = okDotacao && okEmpenhadas;
+
+  const detalhes = [
+    {
+      comparacao: "Dotação Atualizada",
+      col_an01: "DOTAÇÃO ATUALIZADA (e)",
+      col_an09: "DOTAÇÃO ATUALIZADA (d)",
+      an01_valor: an01Dotacao,
+      an01_componentes: [
+        { cod_conta: "AmortizacaoDaDivida",     valor: an01DivDotacao },
+        { cod_conta: "AmortizacaoDaDividaIntra", valor: an01IntraDotacao },
+      ],
+      an09_valor: an09Dotacao,
+      an09_cod_conta: "AmortizacaoDaDivida",
+      diferenca: an01Dotacao - an09Dotacao,
+      consistente: okDotacao,
+    },
+    {
+      comparacao: "Despesas Empenhadas",
+      col_an01: "DESPESAS EMPENHADAS ATÉ O BIMESTRE (f)",
+      col_an09: "DESPESAS EMPENHADAS (e)",
+      an01_valor: an01Empenhadas,
+      an01_componentes: [
+        { cod_conta: "AmortizacaoDaDivida",     valor: an01DivEmpenhadas },
+        { cod_conta: "AmortizacaoDaDividaIntra", valor: an01IntraEmpenhadas },
+      ],
+      an09_valor: an09Empenhadas,
+      an09_cod_conta: "AmortizacaoDaDivida",
+      diferenca: an01Empenhadas - an09Empenhadas,
+      consistente: okEmpenhadas,
+    },
+  ];
+
+  if (consistente) {
+    return {
+      status: "consistente", nota: 1, nota_max: 1,
+      resumo: "6° Bimestre consistente — Amortização da Dívida igual entre Anexo 01 e Anexo 09.",
+      detalhes,
+    };
+  }
+
+  return {
+    status: "inconsistente", nota: 0, nota_max: 1,
+    resumo: "6° Bimestre com divergência na Amortização da Dívida entre Anexo 01 e Anexo 09.",
+    detalhes,
+  };
+}
+
+// ── D3_00040: Receitas de Operações de Crédito — Anexo 01 × Anexo 09 ─────────
+// Aplica-se apenas ao período 6.
+// Regra 1 (Realizadas):
+//   An01 SUM(ReceitasDeOperacoesDeCredito + ReceitasDeOperacoesDeCreditoIntra) col="Até o Bimestre (c)"
+//   = An09 RREO9ReceitasDeOperacoesDeCredito col="RECEITAS REALIZADAS (b)"
+// Regra 2 (Previsão):
+//   An01 SUM(ReceitasDeOperacoesDeCredito + ReceitasDeOperacoesDeCreditoIntra) col="PREVISÃO ATUALIZADA (a)"
+//   = An09 RREO9ReceitasDeOperacoesDeCredito col="PREVISÃO ATUALIZADA (a)"
+// Ausência de linha = 0. Consistente apenas se AMBAS as regras passarem.
+async function verificarD3_00040(
+  municipioId: number, _codIbge: string, ano: number,
+): Promise<Partial<ResultadoVerificacao>> {
+  const { rows } = await db.query<{
+    fonte: string; cod_conta: string; coluna: string; valor: number;
+  }>(
+    `SELECT
+       CASE
+         WHEN anexo = 'RREO-Anexo 01' THEN 'An01'
+         ELSE 'An09'
+       END AS fonte,
+       cod_conta,
+       coluna,
+       SUM(valor)::float AS valor
+     FROM siconfi_rreo
+     WHERE municipio_id = $1
+       AND exercicio = $2
+       AND periodo = 6
+       AND rotulo = 'Padrão'
+       AND (
+         (anexo = 'RREO-Anexo 01'
+           AND cod_conta IN ('ReceitasDeOperacoesDeCredito','ReceitasDeOperacoesDeCreditoIntra')
+           AND coluna IN ('Até o Bimestre (c)','PREVISÃO ATUALIZADA (a)'))
+         OR
+         (anexo = 'RREO-Anexo 09'
+           AND cod_conta = 'RREO9ReceitasDeOperacoesDeCredito'
+           AND coluna IN ('RECEITAS REALIZADAS (b)','PREVISÃO ATUALIZADA (a)'))
+       )
+     GROUP BY fonte, cod_conta, coluna`,
+    [municipioId, ano],
+  );
+
+  // Índice: "fonte|cod_conta|coluna" → valor
+  const idx = new Map<string, number>();
+  for (const d of rows) idx.set(`${d.fonte}|${d.cod_conta}|${d.coluna}`, d.valor ?? 0);
+
+  const getAn01 = (cod: string, col: string) => idx.get(`An01|${cod}|${col}`) ?? 0;
+  const getAn09 = (cod: string, col: string) => idx.get(`An09|${cod}|${col}`) ?? 0;
+
+  // Valores individuais An01
+  const an01CreditoRealizado      = getAn01("ReceitasDeOperacoesDeCredito",      "Até o Bimestre (c)");
+  const an01IntraRealizado        = getAn01("ReceitasDeOperacoesDeCreditoIntra",  "Até o Bimestre (c)");
+  const an01CreditoPrevisao       = getAn01("ReceitasDeOperacoesDeCredito",      "PREVISÃO ATUALIZADA (a)");
+  const an01IntraPrevisao         = getAn01("ReceitasDeOperacoesDeCreditoIntra",  "PREVISÃO ATUALIZADA (a)");
+
+  const an01Realizado  = an01CreditoRealizado + an01IntraRealizado;
+  const an09Realizado  = getAn09("RREO9ReceitasDeOperacoesDeCredito", "RECEITAS REALIZADAS (b)");
+  const an01Previsao   = an01CreditoPrevisao  + an01IntraPrevisao;
+  const an09Previsao   = getAn09("RREO9ReceitasDeOperacoesDeCredito", "PREVISÃO ATUALIZADA (a)");
+
+  const okRealizado  = Math.abs(an01Realizado  - an09Realizado)  < 0.01;
+  const okPrevisao   = Math.abs(an01Previsao   - an09Previsao)   < 0.01;
+  const consistente  = okRealizado && okPrevisao;
+
+  const detalhes = [
+    {
+      comparacao: "Receitas Realizadas",
+      col_an01: "Até o Bimestre (c)",
+      col_an09: "RECEITAS REALIZADAS (b)",
+      an01_valor: an01Realizado,
+      an01_componentes: [
+        { cod_conta: "ReceitasDeOperacoesDeCredito",      valor: an01CreditoRealizado },
+        { cod_conta: "ReceitasDeOperacoesDeCreditoIntra", valor: an01IntraRealizado },
+      ],
+      an09_valor: an09Realizado,
+      an09_cod_conta: "RREO9ReceitasDeOperacoesDeCredito",
+      diferenca: an01Realizado - an09Realizado,
+      consistente: okRealizado,
+    },
+    {
+      comparacao: "Previsão Atualizada",
+      col_an01: "PREVISÃO ATUALIZADA (a)",
+      col_an09: "PREVISÃO ATUALIZADA (a)",
+      an01_valor: an01Previsao,
+      an01_componentes: [
+        { cod_conta: "ReceitasDeOperacoesDeCredito",      valor: an01CreditoPrevisao },
+        { cod_conta: "ReceitasDeOperacoesDeCreditoIntra", valor: an01IntraPrevisao },
+      ],
+      an09_valor: an09Previsao,
+      an09_cod_conta: "RREO9ReceitasDeOperacoesDeCredito",
+      diferenca: an01Previsao - an09Previsao,
+      consistente: okPrevisao,
+    },
+  ];
+
+  if (consistente) {
     return {
       status: "consistente", nota: 1, nota_max: 1,
       resumo: "6° Bimestre consistente — Receitas de Operações de Crédito iguais entre Anexo 01 e Anexo 09.",
@@ -2177,18 +2527,58 @@ async function verificarD3_00040(
     };
   }
 
-  const inconsistentes = comparacoes.length - totalOk;
   return {
     status: "inconsistente", nota: 0, nota_max: 1,
-    resumo: `6° Bimestre: ${inconsistentes} de ${comparacoes.length} comparações com divergência de Operações de Crédito entre Anexo 01 e Anexo 09.`,
+    resumo: "6° Bimestre com divergência nas Receitas de Operações de Crédito entre Anexo 01 e Anexo 09.",
     detalhes,
   };
 }
 
-// Mapeamento: no_declaracao da tabela → verificações do tipo
-const VERIFICACOES_POR_TIPO: Record<string, string[]> = {
-  "RREO": ["D1_00001","D1_00006","D1_00011","D3_00001","D3_00002","D3_00003","D3_00007","D3_00012","D3_00017","D3_00027","D3_00028","D3_00030","D3_00032","D3_00033","D3_00034","D3_00035","D3_00037","D3_00038","D3_00039","D3_00040","D3_00044","D3_00045"],
+// Mapeamento: tipo → verificações com vigência por exercício.
+// `desde` = primeiro exercício em que a regra é válida (inclusive).
+// `ate`   = último exercício em que a regra é válida (inclusive).
+// Omitir `desde`/`ate` = sem limite naquele sentido.
+// Para desativar uma regra a partir de um ano: adicione `ate: <ano-1>`.
+// Para ativar uma regra a partir de um ano: adicione `desde: <ano>`.
+interface VigenciaVerificacao {
+  codigo: string;
+  desde?: number;
+  ate?: number;
+}
+
+const VERIFICACOES_POR_TIPO: Record<string, VigenciaVerificacao[]> = {
+  "RREO": [
+    { codigo: "D1_00001" },
+    { codigo: "D1_00006" },
+    { codigo: "D1_00011" },
+    { codigo: "D3_00001" },
+    { codigo: "D3_00002" },
+    { codigo: "D3_00003", ate: 2022 },   // descontinuada a partir de 2023
+    { codigo: "D3_00007", ate: 2023 },   // descontinuada a partir de 2024
+    { codigo: "D3_00012" },
+    { codigo: "D3_00017" },
+    { codigo: "D3_00027" },
+    { codigo: "D3_00028" },
+    { codigo: "D3_00030" },
+    { codigo: "D3_00032" },
+    { codigo: "D3_00033" },
+    { codigo: "D3_00034" },
+    { codigo: "D3_00035" },
+    { codigo: "D3_00037" },
+    { codigo: "D3_00038" },
+    { codigo: "D3_00039" },
+    { codigo: "D3_00040" },
+    { codigo: "D3_00044" },
+    { codigo: "D3_00045" },
+  ],
 };
+
+/** Retorna os códigos de verificação vigentes para um tipo e exercício. */
+function getVerificacoesVigentes(tipo: string, ano: number): string[] {
+  return (VERIFICACOES_POR_TIPO[tipo] ?? [])
+    .filter(v => (v.desde === undefined || ano >= v.desde) && (v.ate === undefined || ano <= v.ate))
+    .map(v => v.codigo);
+}
 
 const verificadores: Record<string, VerificadorFn> = {
   "D1_00001": verificarD1_00001,
@@ -2203,6 +2593,9 @@ const verificadores: Record<string, VerificadorFn> = {
   "D3_00027": verificarD3_00027,
   "D3_00028": verificarD3_00028,
   "D3_00030": verificarD3_00030,
+  "D3_00037": verificarD3_00037,
+  "D3_00038": verificarD3_00038,
+  "D3_00039": verificarD3_00039,
   "D3_00040": verificarD3_00040,
   "D3_00045": verificarD3_00045,
 };
@@ -2221,7 +2614,7 @@ router.post("/validar/:municipio_id", async (req: AuthRequest, res: Response) =>
   );
   if (!municipio) return res.status(404).json({ error: "Município não encontrado" });
 
-  const codigosEsperados = VERIFICACOES_POR_TIPO[tipo] ?? [];
+  const codigosEsperados = getVerificacoesVigentes(tipo, ano);
 
   // Buscar metadados das verificações no banco
   const { rows: regras } = await db.query<{
