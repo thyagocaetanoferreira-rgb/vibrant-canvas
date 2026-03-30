@@ -43,6 +43,7 @@ type TipoGrupo = "rreo" | "rgf" | "msc" | "dca" | "outros";
 interface EntregaEnriquecida extends ExtratoItem {
   prazo: Date | null;
   intempestiva: boolean;
+  reIncerta: boolean;  // RE com data_status após o prazo — data da entrega original indisponível na API
   diasAtraso: number | null;
   tipoGrupo: TipoGrupo;
   labelPeriodo: string;
@@ -183,14 +184,26 @@ function enriquecer(items: ExtratoItem[], exercicio: number): EntregaEnriquecida
       : isDCA(item.entregavel) ? "dca"
       : "outros";
 
-    return { ...item, prazo, intempestiva, diasAtraso, tipoGrupo, labelPeriodo: mkLabelPeriodo(item) };
+    // reIncerta: status RE e data_status após prazo — a data disponível é da retificação,
+    // não da entrega original, portanto a tempestividade real é desconhecida.
+    const reIncerta = item.status_relatorio?.trim() === "RE" && intempestiva;
+
+    return { ...item, prazo, intempestiva, reIncerta, diasAtraso, tipoGrupo, labelPeriodo: mkLabelPeriodo(item) };
   });
 }
 
 // ── Badge de status ───────────────────────────────────────────────────────────
 
 function StatusBadge({ item }: { item: EntregaEnriquecida }) {
-  // Intempestivo tem prioridade — verificar ANTES do status_relatorio
+  // RE com data da retificação após o prazo — origem da entrega original desconhecida
+  if (item.reIncerta) {
+    return (
+      <Badge style={{ backgroundColor: "#ffb85a25", color: "#b45309", border: "1px solid #ffb85a70", fontSize: 11 }}>
+        Retificado ⚠
+      </Badge>
+    );
+  }
+  // HO confirmado após o prazo — intempestividade certa
   if (item.intempestiva) {
     return (
       <Badge style={{ backgroundColor: "#ef444420", color: "#ef4444", border: "none", fontSize: 11 }}>
@@ -198,8 +211,8 @@ function StatusBadge({ item }: { item: EntregaEnriquecida }) {
       </Badge>
     );
   }
-  const sr = item.status_relatorio?.trim();
-  if (sr === "RE") {
+  // RE entregue dentro do prazo (data da retificação ≤ prazo)
+  if (item.status_relatorio?.trim() === "RE") {
     return (
       <Badge style={{ backgroundColor: "#008ded20", color: "#008ded", border: "none", fontSize: 11 }}>
         Retificado
@@ -255,7 +268,8 @@ function TabelaEntregas({ rows }: { rows: EntregaEnriquecida[] }) {
             key={i}
             className={cn(
               "hover:bg-[#e3eef6]/30",
-              row.intempestiva && "bg-[#ef4444]/5",
+              row.reIncerta && "bg-[#ffb85a]/5",
+              !row.reIncerta && row.intempestiva && "bg-[#ef4444]/5",
             )}
           >
             <TableCell className="pl-5 font-medium text-sm text-[#033e66]">
@@ -337,7 +351,7 @@ function TabTrigger({
 
 // ── Painel de Situação (matriz instituição × período) ─────────────────────────
 
-type CellStatus = "entregue" | "intempestivo" | "nao_entregue" | "futuro";
+type CellStatus = "entregue" | "intempestivo" | "retificado_incerto" | "nao_entregue" | "futuro";
 
 /** Períodos esperados com base na periodicidade do entregável */
 function getExpectedPeriods(periodicidade: string, tipoRelatorio: string | null): number[] {
@@ -371,8 +385,15 @@ function CelulaStatus({ status }: { status: CellStatus }) {
   );
   if (status === "intempestivo") return (
     <div className="flex justify-center">
+      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#ef4444]/15 border border-[#ef4444]/70">
+        <AlertTriangle className="w-3.5 h-3.5 text-[#ef4444]" />
+      </span>
+    </div>
+  );
+  if (status === "retificado_incerto") return (
+    <div className="flex justify-center">
       <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#ffb85a]/20 border border-[#ffb85a]">
-        <AlertTriangle className="w-3.5 h-3.5 text-[#b45309]" />
+        <Clock className="w-3.5 h-3.5 text-[#b45309]" />
       </span>
     </div>
   );
@@ -421,10 +442,17 @@ function MatrizEntregavel({
       const inst = item.instituicao ?? "—";
       if (!map.has(inst)) map.set(inst, new Map());
       const periMap = map.get(inst)!;
-      const atual   = periMap.get(item.periodo);
-      const novo: CellStatus = item.intempestiva ? "intempestivo" : "entregue";
-      // Intempestivo prevalece sobre entregue
-      if (!atual || (novo === "intempestivo" && atual === "entregue")) {
+      const atual = periMap.get(item.periodo);
+      const novo: CellStatus = item.reIncerta
+        ? "retificado_incerto"
+        : item.intempestiva
+          ? "intempestivo"
+          : "entregue";
+      // Prioridade: intempestivo > retificado_incerto > entregue
+      const prio: Record<CellStatus, number> = {
+        futuro: 0, nao_entregue: 0, entregue: 1, retificado_incerto: 2, intempestivo: 3,
+      };
+      if (!atual || prio[novo] > prio[atual]) {
         periMap.set(item.periodo, novo);
       }
     }
@@ -512,10 +540,16 @@ function PainelSituacao({
           Entregue no prazo
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#ffb85a]/20 border border-[#ffb85a]">
-            <AlertTriangle className="w-3 h-3 text-[#b45309]" />
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#ef4444]/15 border border-[#ef4444]/70">
+            <AlertTriangle className="w-3 h-3 text-[#ef4444]" />
           </span>
-          Intempestivo
+          Intempestivo (confirmado)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#ffb85a]/20 border border-[#ffb85a]">
+            <Clock className="w-3 h-3 text-[#b45309]" />
+          </span>
+          Retificado — data original incerta
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#ef4444]/15 border border-[#ef4444]/60">
@@ -596,12 +630,13 @@ export default function SiconfiEntregasPage() {
   [enriquecidos, instFiltro]);
 
   // KPIs (sobre lista filtrada)
-  const noPrazo       = filtrados.filter((i) => !i.intempestiva && i.data_status).length;
-  const intempestivos = filtrados.filter((i) => i.intempestiva).length;
+  const noPrazo         = filtrados.filter((i) => !i.intempestiva && i.data_status).length;
+  const confirmadosLate = filtrados.filter((i) => i.intempestiva && !i.reIncerta).length;
+  const reIncertaCount  = filtrados.filter((i) => i.reIncerta).length;
 
   // Filtros por grupo
   const grp = (g: TipoGrupo) => filtrados.filter((i) => i.tipoGrupo === g);
-  const intempLista   = filtrados.filter((i) => i.intempestiva);
+  const intempLista = filtrados.filter((i) => i.intempestiva);
 
   if (!municipioId) {
     return (
@@ -741,28 +776,37 @@ export default function SiconfiEntregasPage() {
           />
           <KpiCard
             titulo="Intempestivos"
-            valor={isLoading ? 0 : intempestivos}
-            subtitulo="entregues fora do prazo"
+            valor={isLoading ? 0 : confirmadosLate}
+            subtitulo="HO confirmado fora do prazo"
             cor="#ef4444"
             icon={XCircle}
           />
           <KpiCard
-            titulo="Retificações"
-            valor={isLoading ? 0 : filtrados.filter((i) => i.status_relatorio?.trim() === "RE").length}
-            subtitulo="demonstrativos retificados"
+            titulo="Retif. c/ data incerta"
+            valor={isLoading ? 0 : reIncertaCount}
+            subtitulo="data da entrega original indisponível"
             cor="#ffb85a"
             icon={Clock}
           />
         </div>
       )}
 
-      {/* ── Aviso intempestividade ───────────────────────────────────────────── */}
-      {intempestivos > 0 && (
+      {/* ── Avisos ──────────────────────────────────────────────────────────── */}
+      {confirmadosLate > 0 && (
         <div className="flex items-center gap-3 rounded-xl border border-[#ef4444]/30 bg-[#ef4444]/5 px-4 py-3">
           <AlertTriangle className="w-5 h-5 text-[#ef4444] shrink-0" />
           <p className="text-sm text-[#ef4444] font-medium">
-            {intempestivos} entrega{intempestivos > 1 ? "s foram realizadas" : " foi realizada"} fora do prazo
+            {confirmadosLate} entrega{confirmadosLate > 1 ? "s foram realizadas" : " foi realizada"} fora do prazo
             no exercício {anoSelecionado}. Verifique a aba <strong>Intempestividade</strong>.
+          </p>
+        </div>
+      )}
+      {reIncertaCount > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-[#ffb85a]/40 bg-[#ffb85a]/8 px-4 py-3">
+          <Clock className="w-5 h-5 text-[#b45309] shrink-0" />
+          <p className="text-sm text-[#b45309] font-medium">
+            {reIncertaCount} retificação{reIncertaCount > 1 ? "ões" : ""} com data de entrega original indisponível na API SICONFI.
+            {" "}A análise de tempestividade usa a data da retificação (RE), podendo não refletir a entrega original que pode ter sido feita no prazo.
           </p>
         </div>
       )}
@@ -830,7 +874,7 @@ export default function SiconfiEntregasPage() {
                       <p className="text-sm text-[#ef4444]">
                         <strong>{intempLista.length}</strong> entrega{intempLista.length > 1 ? "s" : ""}{" "}
                         realizada{intempLista.length > 1 ? "s" : ""} fora do prazo neste exercício.
-                        A análise considera a data de homologação (HO) em relação ao prazo legal.
+                        Intempestivos confirmados (HO) e retificações com data original incerta (RE). Para retificações, a API SICONFI fornece apenas a data da retificação — a entrega original pode ter sido feita no prazo.
                       </p>
                     </div>
                     <TabelaEntregas rows={intempLista} />

@@ -78,12 +78,12 @@
   }
 
   ::placeholder {
-    color: #2bb0f9 !important;
+    color: #95ABBD !important;
     opacity: 1;
   }
 
   [data-placeholder] {
-    color: #2bb0f9 !important;
+    color: #95ABBD !important;
   }
 
   h1, h2, h3, h4, h5, h6 {

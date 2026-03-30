@@ -84,13 +84,14 @@ const UsuarioFormPage = () => {
           setTelefone(data.telefone || "");
           setPerfil(data.perfil);
           setPerfilOriginal(data.perfil);
-          setMunicipioId(String(data.municipio_id));
+          setMunicipioId(data.municipio_id ? String(data.municipio_id) : "");
           setAtivo(data.ativo);
           setFotoUrl(data.foto_url);
 
-          const extraMunicipios = await api.get<{ municipio_id: number }[]>(`/usuarios/${id}/municipios`);
-          if (extraMunicipios && extraMunicipios.length > 0) {
-            setMunicipioIds(extraMunicipios.map((m) => m.municipio_id));
+          // A API retorna number[] (flat array de IDs)
+          const extraMunicipioIds = await api.get<number[]>(`/usuarios/${id}/municipios`);
+          if (extraMunicipioIds && extraMunicipioIds.length > 0) {
+            setMunicipioIds(extraMunicipioIds);
           } else {
             setMunicipioIds(data.municipio_id ? [data.municipio_id] : []);
           }
@@ -183,7 +184,9 @@ const UsuarioFormPage = () => {
       }
     }
 
-    const primaryMunicipioId = isMultiMunicipio ? (municipioIds[0] || 0) : parseInt(municipioId);
+    const primaryMunicipioId = isMultiMunicipio
+      ? (municipioIds[0] ?? null)
+      : (municipioId ? parseInt(municipioId) : null);
 
     const userData: any = {
       nome,

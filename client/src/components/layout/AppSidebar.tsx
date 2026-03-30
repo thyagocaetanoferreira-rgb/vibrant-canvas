@@ -29,7 +29,7 @@ const isGroup = (entry: NavEntry): entry is NavGroup => "children" in entry;
 const navEntries: NavEntry[] = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/" },
   { label: "Agenda", icon: Calendar, path: "/agenda" },
-  { label: "Validador SICONFI", icon: ClipboardCheck, path: "/siconfi/validador" },
+  { label: "Simulador Verus", icon: ClipboardCheck, path: "/siconfi/validador" },
   {
     label: "Entregas",
     icon: Send,
@@ -140,9 +140,10 @@ const AppSidebar = () => {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-40 h-screen bg-sidebar text-sidebar-foreground flex flex-col transition-all duration-300",
+        "fixed left-0 top-0 z-40 h-screen text-sidebar-foreground flex flex-col transition-all duration-300",
         sidebarCollapsed ? "w-[68px]" : "w-[240px]"
       )}
+      style={{ backgroundColor: "#033e66" }}
     >
       {/* Logo */}
       <div className="flex items-center justify-center px-4 h-16 border-b border-sidebar-border flex-shrink-0">

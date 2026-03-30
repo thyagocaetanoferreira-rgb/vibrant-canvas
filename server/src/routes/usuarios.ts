@@ -49,20 +49,32 @@ router.put("/:id", async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
 
   try {
+    // Se o municipio_id recebido não for um inteiro positivo válido, mantém o valor atual
+    console.log("[PUT usuario] body municipio_id:", municipio_id, "type:", typeof municipio_id);
+    const parsedMid = Number(municipio_id);
+    let resolvedMunicipioId: number;
+    if (municipio_id && Number.isInteger(parsedMid) && parsedMid > 0) {
+      resolvedMunicipioId = parsedMid;
+    } else {
+      const { rows: cur } = await db.query("SELECT municipio_id FROM usuarios WHERE id = $1", [id]);
+      resolvedMunicipioId = cur[0]?.municipio_id;
+    }
+    console.log("[PUT usuario] resolvedMunicipioId:", resolvedMunicipioId);
+
     if (senha) {
       const senha_hash = await bcrypt.hash(senha, 12);
       await db.query(
         `UPDATE usuarios SET nome=$1, username=$2, email=$3, telefone=$4, perfil=$5,
          municipio_id=$6, ativo=$7, foto_url=$8, senha_hash=$9, atualizado_em=NOW()
          WHERE id=$10`,
-        [nome, username, email, telefone || null, perfil, municipio_id, ativo, foto_url || null, senha_hash, id]
+        [nome, username, email, telefone || null, perfil, resolvedMunicipioId, ativo, foto_url || null, senha_hash, id]
       );
     } else {
       await db.query(
         `UPDATE usuarios SET nome=$1, username=$2, email=$3, telefone=$4, perfil=$5,
          municipio_id=$6, ativo=$7, foto_url=$8, atualizado_em=NOW()
          WHERE id=$9`,
-        [nome, username, email, telefone || null, perfil, municipio_id, ativo, foto_url || null, id]
+        [nome, username, email, telefone || null, perfil, resolvedMunicipioId, ativo, foto_url || null, id]
       );
     }
 
@@ -98,13 +110,17 @@ router.put("/:id/municipios", async (req: AuthRequest, res: Response) => {
   try {
     await client.query("BEGIN");
     await client.query("DELETE FROM usuario_municipios WHERE usuario_id = $1", [id]);
-    if (municipio_ids?.length > 0) {
-      for (const mid of municipio_ids) {
-        await client.query(
-          "INSERT INTO usuario_municipios (usuario_id, municipio_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-          [id, mid]
-        );
-      }
+    console.log("[PUT municipios] municipio_ids recebido:", JSON.stringify(municipio_ids));
+    const validIds = (municipio_ids ?? []).filter((mid: any) => {
+      const n = Number(mid);
+      return Number.isInteger(n) && n > 0;
+    });
+    console.log("[PUT municipios] validIds após filtro:", JSON.stringify(validIds));
+    for (const mid of validIds) {
+      await client.query(
+        "INSERT INTO usuario_municipios (usuario_id, municipio_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+        [id, Number(mid)]
+      );
     }
     await client.query("COMMIT");
     return res.json({ success: true });
